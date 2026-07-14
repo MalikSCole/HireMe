@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: hireme-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hireme_user
+      POSTGRES_PASSWORD: hireme_password
+      POSTGRES_DB: hireme
+    ports:
+      - "5432:5432"
+    volumes:
+      - hireme_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  hireme_postgres_data:

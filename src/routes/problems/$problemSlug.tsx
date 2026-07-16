@@ -9,6 +9,7 @@ import { and, eq } from "drizzle-orm";
 
 import { db } from "../../db";
 import { ExecutionReplay } from "../../components/execution-replay";
+import { AiTutor } from "../../components/ai-tutor";
 import { codeDrafts, problems } from "../../db/schema";
 import { saveDraft } from "../../features/drafts/functions";
 import { analyzeCode } from "../../features/analysis/functions";
@@ -244,6 +245,8 @@ function ProblemDetailPage() {
           </button>
         </div>
       </section>
+
+      <AiTutor problemSlug={problem.slug} sourceCode={code} signedIn={problem.canSaveDraft} />
 
       {analysis && <AstAnalysisPanel analysis={analysis} />}
       {trace && <ExecutionReplay problemSlug={problem.slug} sourceCode={trace.sourceCode} trace={trace.data} />}

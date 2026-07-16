@@ -1,13 +1,21 @@
-import { betterAuth } from "better-auth";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { tanstackStartCookies } from "better-auth/tanstack-start";
+import { betterAuth } from 'better-auth'
+import { drizzleAdapter } from 'better-auth/adapters/drizzle'
+import { tanstackStartCookies } from 'better-auth/tanstack-start'
 
-import { db } from "../db";
-import * as schema from "../db/schema";
+import { db } from '../db'
+import * as schema from '../db/schema'
+
+const configuredOrigin = process.env.BETTER_AUTH_URL
+const developmentOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000']
 
 export const auth = betterAuth({
+  ...(configuredOrigin ? { baseURL: configuredOrigin } : {}),
+  trustedOrigins: [
+    ...(configuredOrigin ? [configuredOrigin] : []),
+    ...(process.env.NODE_ENV === 'production' ? [] : developmentOrigins),
+  ],
   database: drizzleAdapter(db, {
-    provider: "pg",
+    provider: 'pg',
     schema: {
       ...schema,
       user: schema.users,
@@ -19,12 +27,8 @@ export const auth = betterAuth({
   }),
   emailAndPassword: { enabled: true },
   user: {
-    modelName: "users",
-    fields: { name: "username" },
+    fields: { name: 'username' },
   },
-  session: { modelName: "sessions" },
-  account: { modelName: "accounts" },
-  verification: { modelName: "verifications" },
-  advanced: { database: { generateId: "uuid" } },
+  advanced: { database: { generateId: 'uuid' } },
   plugins: [tanstackStartCookies()],
-});
+})

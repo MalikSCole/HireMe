@@ -17,6 +17,7 @@ The project is built with TanStack Start, React, TypeScript, PostgreSQL, and Dri
 - Step-by-step execution replay with specialized algorithm visualizations
 - Progressive, prewritten hints that do not expose hidden test data
 - Optional CodeBERTa optimization classifier with automatic AST-only fallback
+- Optional Groq-powered Socratic tutor for hints, edge cases, and code review
 
 ## Screens and workflows
 
@@ -44,7 +45,7 @@ Important routes include:
 | `/learn/courses/$courseSlug` | Course modules and lesson progress                   |
 | `/learn/$lessonSlug`         | Lesson, diagram, quiz, and linked practice           |
 | `/problems`                  | Filterable DSA problem catalog                       |
-| `/problems/$problemSlug`     | Python editor, judge, hints, analysis, and replay    |
+| `/problems/$problemSlug`     | Python editor, judge, hints, AI tutor, and replay    |
 | `/learn/react/challenges`    | React challenge catalog                              |
 | `/dashboard`                 | Progress, streaks, achievements, and recommendations |
 | `/submissions`               | Authenticated submission history                     |
@@ -64,7 +65,8 @@ TanStack Start server functions
   ├── Drizzle ORM ─────────────── PostgreSQL
   ├── Python judge ────────────── Piston
   ├── AST analysis and tracing ── Piston
-  └── Optional learned feedback ─ CodeBERTa service
+  ├── Optional learned feedback ─ CodeBERTa service
+  └── Optional AI tutor ───────── Groq Chat Completions API
 ```
 
 The application sends source code and a generated test harness to Piston. Visible runs receive only public test cases. Authenticated submissions receive all tests on the server, but hidden inputs and expected outputs are removed from the response.
@@ -84,6 +86,7 @@ The application sends source code and a generated test harness to Piston. Visibl
 | Validation            | Zod                                   |
 | Code execution        | Piston                                |
 | Learned code analysis | Optional fine-tuned CodeBERTa service |
+| AI tutor              | Optional Groq Chat Completions API    |
 | Testing               | Vitest                                |
 
 ## Prerequisites
@@ -94,6 +97,7 @@ The application sends source code and a generated test harness to Piston. Visibl
 - A separately running Piston instance with Python 3.10 available
 
 CodeBERTa is optional. The deterministic AST analysis works without it.
+The Groq tutor is also optional; the rest of the problem workspace remains available when it is not configured.
 
 ## Local setup
 
@@ -149,6 +153,8 @@ Open [http://localhost:3000](http://localhost:3000).
 | `PISTON_PYTHON_VERSION` | Yes for Python tools | Python runtime version installed in Piston                   |
 | `CODEBERTA_URL`         | No                   | URL of the optional learned-analysis service                 |
 | `CODEBERTA_API_KEY`     | No                   | Shared bearer token for the CodeBERTa service                |
+| `GROQ_API_KEY`          | No                   | Server-only API key for the optional AI tutor                |
+| `GROQ_MODEL`            | No                   | Groq chat model; defaults to `llama-3.3-70b-versatile`       |
 
 Never commit `.env` or production secrets.
 
@@ -187,6 +193,21 @@ docker run --rm -p 8001:8001 \
 Set matching `CODEBERTA_URL` and `CODEBERTA_API_KEY` values in `.env`. If the service is missing or unavailable, the user still receives deterministic AST feedback.
 
 See [`services/codeberta/README.md`](services/codeberta/README.md) for additional details.
+
+## Optional Groq AI tutor
+
+Create a key from the [Groq API Keys console](https://console.groq.com/keys) and add it only to the server's `.env` file:
+
+```env
+GROQ_API_KEY=your-private-key
+GROQ_MODEL=llama-3.3-70b-versatile
+```
+
+Restart the application after changing `.env`, sign in, and open any DSA problem. The **Optional Groq tutor** panel appears below the code editor with quick actions for a hint, approach review, or edge-case guidance.
+
+The tutor is available inside each problem workspace to authenticated users. Requests include the public problem statement, the learner's current code, and up to eight recent chat messages. Hidden tests, hidden expected outputs, and submission records are never sent to Groq.
+
+The integration calls Groq's OpenAI-compatible Chat Completions endpoint directly from a TanStack server function. Responses are capped, requests time out after 20 seconds, and each user is limited to 12 requests per hour per running application instance. For multi-instance production deployments, replace the in-memory limiter with Redis or another shared store.
 
 ## Database workflow
 
@@ -234,6 +255,7 @@ The seed script is designed to be repeatable: problems, lessons, quizzes, tests,
 - Submitting solutions, saving user progress, and viewing submission history require a verified server session.
 - The judge applies execution, memory, request, source, and output limits.
 - The CodeBERTa service supports a shared bearer token and should remain private.
+- The Groq key remains server-side, tutor access requires authentication, and request context excludes hidden tests.
 - Secrets are loaded from environment variables and excluded from version control.
 
 Application-level distributed rate limiting and production Piston hardening remain deployment responsibilities and should be completed before opening the service to untrusted public traffic.

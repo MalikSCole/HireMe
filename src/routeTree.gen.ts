@@ -9,10 +9,34 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SubmissionsRouteImport } from './routes/submissions'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProblemsIndexRouteImport } from './routes/problems/index'
+import { Route as LearnIndexRouteImport } from './routes/learn/index'
 import { Route as ProblemsProblemSlugRouteImport } from './routes/problems/$problemSlug'
+import { Route as LearnLessonSlugRouteImport } from './routes/learn/$lessonSlug'
+import { Route as LearnCoursesCourseSlugRouteImport } from './routes/learn/courses/$courseSlug'
+import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as LearnReactChallengesIndexRouteImport } from './routes/learn/react/challenges/index'
+import { Route as LearnReactChallengesChallengeSlugRouteImport } from './routes/learn/react/challenges/$challengeSlug'
 
+const SubmissionsRoute = SubmissionsRouteImport.update({
+  id: '/submissions',
+  path: '/submissions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -23,44 +47,170 @@ const ProblemsIndexRoute = ProblemsIndexRouteImport.update({
   path: '/problems/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LearnIndexRoute = LearnIndexRouteImport.update({
+  id: '/learn/',
+  path: '/learn/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProblemsProblemSlugRoute = ProblemsProblemSlugRouteImport.update({
   id: '/problems/$problemSlug',
   path: '/problems/$problemSlug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LearnLessonSlugRoute = LearnLessonSlugRouteImport.update({
+  id: '/learn/$lessonSlug',
+  path: '/learn/$lessonSlug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnCoursesCourseSlugRoute = LearnCoursesCourseSlugRouteImport.update({
+  id: '/learn/courses/$courseSlug',
+  path: '/learn/courses/$courseSlug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
+  id: '/api/auth/$',
+  path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnReactChallengesIndexRoute =
+  LearnReactChallengesIndexRouteImport.update({
+    id: '/learn/react/challenges/',
+    path: '/learn/react/challenges/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const LearnReactChallengesChallengeSlugRoute =
+  LearnReactChallengesChallengeSlugRouteImport.update({
+    id: '/learn/react/challenges/$challengeSlug',
+    path: '/learn/react/challenges/$challengeSlug',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
+  '/login': typeof LoginRoute
+  '/submissions': typeof SubmissionsRoute
+  '/learn/$lessonSlug': typeof LearnLessonSlugRoute
   '/problems/$problemSlug': typeof ProblemsProblemSlugRoute
+  '/learn/': typeof LearnIndexRoute
   '/problems/': typeof ProblemsIndexRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
+  '/learn/courses/$courseSlug': typeof LearnCoursesCourseSlugRoute
+  '/learn/react/challenges/$challengeSlug': typeof LearnReactChallengesChallengeSlugRoute
+  '/learn/react/challenges/': typeof LearnReactChallengesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
+  '/login': typeof LoginRoute
+  '/submissions': typeof SubmissionsRoute
+  '/learn/$lessonSlug': typeof LearnLessonSlugRoute
   '/problems/$problemSlug': typeof ProblemsProblemSlugRoute
+  '/learn': typeof LearnIndexRoute
   '/problems': typeof ProblemsIndexRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
+  '/learn/courses/$courseSlug': typeof LearnCoursesCourseSlugRoute
+  '/learn/react/challenges/$challengeSlug': typeof LearnReactChallengesChallengeSlugRoute
+  '/learn/react/challenges': typeof LearnReactChallengesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
+  '/login': typeof LoginRoute
+  '/submissions': typeof SubmissionsRoute
+  '/learn/$lessonSlug': typeof LearnLessonSlugRoute
   '/problems/$problemSlug': typeof ProblemsProblemSlugRoute
+  '/learn/': typeof LearnIndexRoute
   '/problems/': typeof ProblemsIndexRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
+  '/learn/courses/$courseSlug': typeof LearnCoursesCourseSlugRoute
+  '/learn/react/challenges/$challengeSlug': typeof LearnReactChallengesChallengeSlugRoute
+  '/learn/react/challenges/': typeof LearnReactChallengesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/problems/$problemSlug' | '/problems/'
+  fullPaths:
+    | '/'
+    | '/dashboard'
+    | '/login'
+    | '/submissions'
+    | '/learn/$lessonSlug'
+    | '/problems/$problemSlug'
+    | '/learn/'
+    | '/problems/'
+    | '/api/auth/$'
+    | '/learn/courses/$courseSlug'
+    | '/learn/react/challenges/$challengeSlug'
+    | '/learn/react/challenges/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/problems/$problemSlug' | '/problems'
-  id: '__root__' | '/' | '/problems/$problemSlug' | '/problems/'
+  to:
+    | '/'
+    | '/dashboard'
+    | '/login'
+    | '/submissions'
+    | '/learn/$lessonSlug'
+    | '/problems/$problemSlug'
+    | '/learn'
+    | '/problems'
+    | '/api/auth/$'
+    | '/learn/courses/$courseSlug'
+    | '/learn/react/challenges/$challengeSlug'
+    | '/learn/react/challenges'
+  id:
+    | '__root__'
+    | '/'
+    | '/dashboard'
+    | '/login'
+    | '/submissions'
+    | '/learn/$lessonSlug'
+    | '/problems/$problemSlug'
+    | '/learn/'
+    | '/problems/'
+    | '/api/auth/$'
+    | '/learn/courses/$courseSlug'
+    | '/learn/react/challenges/$challengeSlug'
+    | '/learn/react/challenges/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DashboardRoute: typeof DashboardRoute
+  LoginRoute: typeof LoginRoute
+  SubmissionsRoute: typeof SubmissionsRoute
+  LearnLessonSlugRoute: typeof LearnLessonSlugRoute
   ProblemsProblemSlugRoute: typeof ProblemsProblemSlugRoute
+  LearnIndexRoute: typeof LearnIndexRoute
   ProblemsIndexRoute: typeof ProblemsIndexRoute
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  LearnCoursesCourseSlugRoute: typeof LearnCoursesCourseSlugRoute
+  LearnReactChallengesChallengeSlugRoute: typeof LearnReactChallengesChallengeSlugRoute
+  LearnReactChallengesIndexRoute: typeof LearnReactChallengesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/submissions': {
+      id: '/submissions'
+      path: '/submissions'
+      fullPath: '/submissions'
+      preLoaderRoute: typeof SubmissionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -75,6 +225,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProblemsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/learn/': {
+      id: '/learn/'
+      path: '/learn'
+      fullPath: '/learn/'
+      preLoaderRoute: typeof LearnIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/problems/$problemSlug': {
       id: '/problems/$problemSlug'
       path: '/problems/$problemSlug'
@@ -82,13 +239,58 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProblemsProblemSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/learn/$lessonSlug': {
+      id: '/learn/$lessonSlug'
+      path: '/learn/$lessonSlug'
+      fullPath: '/learn/$lessonSlug'
+      preLoaderRoute: typeof LearnLessonSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn/courses/$courseSlug': {
+      id: '/learn/courses/$courseSlug'
+      path: '/learn/courses/$courseSlug'
+      fullPath: '/learn/courses/$courseSlug'
+      preLoaderRoute: typeof LearnCoursesCourseSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn/react/challenges/': {
+      id: '/learn/react/challenges/'
+      path: '/learn/react/challenges'
+      fullPath: '/learn/react/challenges/'
+      preLoaderRoute: typeof LearnReactChallengesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn/react/challenges/$challengeSlug': {
+      id: '/learn/react/challenges/$challengeSlug'
+      path: '/learn/react/challenges/$challengeSlug'
+      fullPath: '/learn/react/challenges/$challengeSlug'
+      preLoaderRoute: typeof LearnReactChallengesChallengeSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DashboardRoute: DashboardRoute,
+  LoginRoute: LoginRoute,
+  SubmissionsRoute: SubmissionsRoute,
+  LearnLessonSlugRoute: LearnLessonSlugRoute,
   ProblemsProblemSlugRoute: ProblemsProblemSlugRoute,
+  LearnIndexRoute: LearnIndexRoute,
   ProblemsIndexRoute: ProblemsIndexRoute,
+  ApiAuthSplatRoute: ApiAuthSplatRoute,
+  LearnCoursesCourseSlugRoute: LearnCoursesCourseSlugRoute,
+  LearnReactChallengesChallengeSlugRoute:
+    LearnReactChallengesChallengeSlugRoute,
+  LearnReactChallengesIndexRoute: LearnReactChallengesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

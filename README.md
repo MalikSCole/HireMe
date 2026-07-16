@@ -1,216 +1,305 @@
-Welcome to your new TanStack Start app! 
+# Code Learning Platform
 
-# Getting Started
+A full-stack programming education platform for learning data structures, algorithms, and React through lessons, visual explanations, quizzes, coding challenges, and sandboxed code execution.
 
-To run this application:
+The project is built with TanStack Start, React, TypeScript, PostgreSQL, and Drizzle ORM. Python submissions are evaluated by a separate Piston service so learner code is never executed inside the web application process.
 
-```bash
-npm install
-npm run dev
+## Highlights
+
+- 19 Python DSA problems across arrays, hashing, two pointers, sliding windows, stacks, binary search, heaps, graphs, and dynamic programming
+- 24 structured DSA and React lessons with diagrams, worked examples, complexity analysis, common pitfalls, and knowledge checks
+- Monaco-based Python problem workspace with starter code and saved drafts
+- Visible test runs and authenticated submissions against hidden test cases
+- Sandboxed Python execution through a separately hosted Piston service
+- Submission history, problem progress, lesson completion, streaks, achievements, and personalized recommendations
+- Interactive React lessons and Sandpack-based component challenges
+- AST-based Python feedback for complexity signals and common implementation patterns
+- Step-by-step execution replay with specialized algorithm visualizations
+- Progressive, prewritten hints that do not expose hidden test data
+- Optional CodeBERTa optimization classifier with automatic AST-only fallback
+
+## Screens and workflows
+
+The main user flow is:
+
+```text
+Choose a course
+      ↓
+Read a visual lesson
+      ↓
+Complete a knowledge check
+      ↓
+Open the linked practice problem
+      ↓
+Run visible tests → inspect execution → submit hidden tests
+      ↓
+Update progress, streaks, achievements, and recommendations
 ```
 
-# Building For Production
+Important routes include:
 
-To build this application for production:
+| Route                        | Purpose                                              |
+| ---------------------------- | ---------------------------------------------------- |
+| `/learn`                     | Course catalog                                       |
+| `/learn/courses/$courseSlug` | Course modules and lesson progress                   |
+| `/learn/$lessonSlug`         | Lesson, diagram, quiz, and linked practice           |
+| `/problems`                  | Filterable DSA problem catalog                       |
+| `/problems/$problemSlug`     | Python editor, judge, hints, analysis, and replay    |
+| `/learn/react/challenges`    | React challenge catalog                              |
+| `/dashboard`                 | Progress, streaks, achievements, and recommendations |
+| `/submissions`               | Authenticated submission history                     |
 
-```bash
-npm run build
+## Architecture
+
+```text
+Browser
+  │
+  ├── TanStack Router pages
+  ├── Monaco Python editor
+  └── Sandpack React preview
+  │
+TanStack Start server functions
+  ├── Better Auth session checks
+  ├── Zod request validation
+  ├── Drizzle ORM ─────────────── PostgreSQL
+  ├── Python judge ────────────── Piston
+  ├── AST analysis and tracing ── Piston
+  └── Optional learned feedback ─ CodeBERTa service
 ```
 
-## Testing
+The application sends source code and a generated test harness to Piston. Visible runs receive only public test cases. Authenticated submissions receive all tests on the server, but hidden inputs and expected outputs are removed from the response.
 
-This project uses [Vitest](https://vitest.dev/) for testing. You can run the tests with:
+## Technology
 
-```bash
-npm run test
+| Area                  | Technology                            |
+| --------------------- | ------------------------------------- |
+| Full-stack framework  | TanStack Start                        |
+| UI                    | React 19, TypeScript, Tailwind CSS    |
+| Routing               | TanStack Router                       |
+| Python editor         | Monaco Editor                         |
+| React playground      | CodeSandbox Sandpack                  |
+| Database              | PostgreSQL 17                         |
+| ORM and migrations    | Drizzle ORM and Drizzle Kit           |
+| Authentication        | Better Auth                           |
+| Validation            | Zod                                   |
+| Code execution        | Piston                                |
+| Learned code analysis | Optional fine-tuned CodeBERTa service |
+| Testing               | Vitest                                |
+
+## Prerequisites
+
+- Node.js 22 or newer
+- npm
+- Docker and Docker Compose for the local PostgreSQL container
+- A separately running Piston instance with Python 3.10 available
+
+CodeBERTa is optional. The deterministic AST analysis works without it.
+
+## Local setup
+
+1. Install dependencies.
+
+   ```bash
+   npm install
+   ```
+
+2. Copy the environment template.
+
+   ```bash
+   cp .env.example .env
+   ```
+
+3. Generate a secure authentication secret and replace the example value in `.env`.
+
+   ```bash
+   openssl rand -base64 32
+   ```
+
+4. Start PostgreSQL.
+
+   ```bash
+   docker compose up -d postgres
+   ```
+
+5. Start or connect a Piston service on port `2000`, then confirm that `PISTON_URL` and `PISTON_PYTHON_VERSION` match that instance.
+
+6. Apply migrations and seed the curriculum.
+
+   ```bash
+   npm run db:migrate
+   npm run db:seed
+   ```
+
+7. Start the application.
+
+   ```bash
+   npm run dev
+   ```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+## Environment variables
+
+| Variable                | Required             | Description                                                  |
+| ----------------------- | -------------------- | ------------------------------------------------------------ |
+| `DATABASE_URL`          | Yes                  | PostgreSQL connection string used by the app and Drizzle     |
+| `BETTER_AUTH_SECRET`    | Yes                  | High-entropy authentication secret of at least 32 characters |
+| `BETTER_AUTH_URL`       | Yes                  | Public origin of the web application                         |
+| `PISTON_URL`            | Yes for Python tools | Private URL of the Piston execution service                  |
+| `PISTON_PYTHON_VERSION` | Yes for Python tools | Python runtime version installed in Piston                   |
+| `CODEBERTA_URL`         | No                   | URL of the optional learned-analysis service                 |
+| `CODEBERTA_API_KEY`     | No                   | Shared bearer token for the CodeBERTa service                |
+
+Never commit `.env` or production secrets.
+
+## Piston execution service
+
+Piston must run separately from the application. The web process calls:
+
+```text
+POST {PISTON_URL}/api/v2/execute
 ```
 
-## Styling
+The judge currently supports Python only and enforces:
 
-This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
+- A 20 KB source-code limit
+- A three-second execution timeout sent to Piston
+- A five-second application-side request timeout
+- A 128 MB memory limit for judged submissions
+- Truncated error and console output
+- Hidden-test redaction
 
-### Removing Tailwind CSS
+For a public deployment, keep Piston on a private network and configure its own authentication, network isolation, concurrency controls, quotas, and request rate limiting. Do not expose an unrestricted Piston instance directly to the internet.
 
-If you prefer not to use Tailwind CSS:
+## Optional CodeBERTa service
 
-1. Remove the demo pages in `src/routes/demo/`
-2. Replace the Tailwind import in `src/styles.css` with your own styles
-3. Remove `tailwindcss()` from the plugins array in `vite.config.ts`
-4. Uninstall the packages: `npm install @tailwindcss/vite tailwindcss -D`
-
-## Linting & Formatting
-
-
-This project uses [eslint](https://eslint.org/) and [prettier](https://prettier.io/) for linting and formatting. Eslint is configured using [tanstack/eslint-config](https://tanstack.com/config/latest/docs/eslint). The following scripts are available:
+The included service expects a fine-tuned sequence-classification checkpoint. The base `microsoft/codebert-base` checkpoint does not contain a trained optimization classifier.
 
 ```bash
+docker build -t code-learning-codeberta services/codeberta
+
+docker run --rm -p 8001:8001 \
+  -e CODEBERTA_MODEL_ID=your-org/your-fine-tuned-codeberta \
+  -e CODEBERTA_API_KEY=replace-me \
+  code-learning-codeberta
+```
+
+Set matching `CODEBERTA_URL` and `CODEBERTA_API_KEY` values in `.env`. If the service is missing or unavailable, the user still receives deterministic AST feedback.
+
+See [`services/codeberta/README.md`](services/codeberta/README.md) for additional details.
+
+## Database workflow
+
+The schema is defined in `src/db/schema.ts`, generated migrations live in `drizzle/`, and repeatable curriculum data lives in `src/db/seed.ts`.
+
+```bash
+# Generate a migration after changing the schema
+npm run db:generate
+
+# Apply pending migrations
+npm run db:migrate
+
+# Insert or update curriculum data
+npm run db:seed
+
+# Inspect the database locally
+npm run db:studio
+```
+
+The seed script is designed to be repeatable: problems, lessons, quizzes, tests, and React challenges are updated through stable slugs or unique positions.
+
+## Available scripts
+
+| Command                   | Description                                    |
+| ------------------------- | ---------------------------------------------- |
+| `npm run dev`             | Start the development server on port 3000      |
+| `npm run build`           | Build the client and server production bundles |
+| `npm start`               | Run the generated Nitro server                 |
+| `npm run test`            | Run the Vitest suite                           |
+| `npm run lint`            | Run ESLint                                     |
+| `npm run check`           | Check formatting with Prettier                 |
+| `npm run format`          | Format files and apply ESLint fixes            |
+| `npm run generate-routes` | Regenerate the TanStack route tree             |
+| `npm run db:generate`     | Generate a Drizzle migration                   |
+| `npm run db:migrate`      | Apply database migrations                      |
+| `npm run db:seed`         | Seed or update learning content                |
+| `npm run db:studio`       | Open Drizzle Studio                            |
+
+## Security model
+
+- User code runs in Piston rather than the TanStack application process.
+- Server functions validate identifiers and source-code lengths with Zod.
+- Database operations use Drizzle query builders and parameterized expressions.
+- Hidden test inputs and expected values are never returned to the browser.
+- Submitting solutions, saving user progress, and viewing submission history require a verified server session.
+- The judge applies execution, memory, request, source, and output limits.
+- The CodeBERTa service supports a shared bearer token and should remain private.
+- Secrets are loaded from environment variables and excluded from version control.
+
+Application-level distributed rate limiting and production Piston hardening remain deployment responsibilities and should be completed before opening the service to untrusted public traffic.
+
+## Testing and quality checks
+
+Run the local verification suite with:
+
+```bash
+npx tsc --noEmit
 npm run lint
-npm run format
-npm run check
+npm run test
+npm run build
+git diff --check
 ```
 
+Current automated coverage includes unit tests for achievement calculation. Expanding coverage for server functions, judge response normalization, authentication boundaries, and browser workflows is a planned production-hardening step.
 
-## Deploy to Railway
+## Project structure
 
-This project ships with `nixpacks.toml` so Railway detects the build automatically:
+```text
+src/
+├── components/          # Editors, diagrams, replays, roadmaps, and challenge UI
+├── db/                  # Drizzle client, schema, and curriculum seed data
+├── features/
+│   ├── analysis/        # AST and optional CodeBERTa feedback
+│   ├── drafts/          # Saved problem code
+│   ├── judge/           # Piston execution and test evaluation
+│   ├── lessons/         # Completion and quiz actions
+│   ├── progress/        # Achievement rules
+│   ├── react-challenges/# Challenge completion
+│   └── trace/           # Instrumented execution replay
+├── lib/                 # Authentication helpers and shared utilities
+└── routes/              # TanStack file-based routes
 
-1. Push this repo to GitHub
-2. Visit https://railway.com/new and create a project from your repo
-3. In the **Variables** tab, add the entries from `.env.example` with their production values
-4. Railway runs `vite build` and serves from `dist/client`
-
-Need a database? Click **+ New** in your project to provision Postgres, MySQL, or Redis directly into the same environment — the connection string is auto-injected as `DATABASE_URL`.
-
-
-
-## Routing
-
-This project uses [TanStack Router](https://tanstack.com/router) with file-based routing. Routes are managed as files in `src/routes`.
-
-### Adding A Route
-
-To add a new route to your application just add a new file in the `./src/routes` directory.
-
-TanStack will automatically generate the content of the route file for you.
-
-Now that you have two routes you can use a `Link` component to navigate between them.
-
-### Adding Links
-
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
-
-```tsx
-import { Link } from "@tanstack/react-router";
+drizzle/                 # Generated PostgreSQL migrations
+services/codeberta/      # Optional Python inference service
+docker-compose.yml       # Local PostgreSQL
 ```
 
-Then anywhere in your JSX you can use it like so:
+## Current scope and roadmap
 
-```tsx
-<Link to="/about">About</Link>
-```
+Implemented:
 
-This will create a link that will navigate to the `/about` route.
+- Authentication and persisted learning progress
+- DSA and React curricula
+- Python run and submit workflow
+- Hidden tests and submission history
+- React coding challenges
+- AST feedback and execution visualization
+- Streaks, achievements, and recommendations
 
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
+Planned improvements:
 
-### Using A Layout
+- Integration and Playwright end-to-end coverage
+- Distributed production rate limiting and submission quotas
+- Persistent discussion threads and user profiles
+- Administrative curriculum editor
+- Topic-mastery scoring and deeper personalized recommendations
+- Production deployment and observability
+- Fine-tuned CodeBERTa checkpoint evaluation
 
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you render `{children}` in the `shellComponent`.
+## Resume summary
 
-Here is an example layout that includes a header:
+> Built a full-stack programming education platform using TanStack Start, React, TypeScript, PostgreSQL, and Drizzle, featuring sandboxed Python execution, hidden test evaluation, interactive React challenges, AST-based code feedback, execution visualizations, and personalized progress tracking.
 
-```tsx
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
+## License
 
-export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'My App' },
-    ],
-  }),
-  shellComponent: ({ children }) => (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        <header>
-          <nav>
-            <Link to="/">Home</Link>
-            <Link to="/about">About</Link>
-          </nav>
-        </header>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  ),
-})
-```
-
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
-
-## Server Functions
-
-TanStack Start provides server functions that allow you to write server-side code that seamlessly integrates with your client components.
-
-```tsx
-import { createServerFn } from '@tanstack/react-start'
-
-const getServerTime = createServerFn({
-  method: 'GET',
-}).handler(async () => {
-  return new Date().toISOString()
-})
-
-// Use in a component
-function MyComponent() {
-  const [time, setTime] = useState('')
-  
-  useEffect(() => {
-    getServerTime().then(setTime)
-  }, [])
-  
-  return <div>Server time: {time}</div>
-}
-```
-
-## API Routes
-
-You can create API routes by using the `server` property in your route definitions:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { json } from '@tanstack/react-start'
-
-export const Route = createFileRoute('/api/hello')({
-  server: {
-    handlers: {
-      GET: () => json({ message: 'Hello, World!' }),
-    },
-  },
-})
-```
-
-## Data Fetching
-
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
-
-For example:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/people')({
-  loader: async () => {
-    const response = await fetch('https://swapi.dev/api/people')
-    return response.json()
-  },
-  component: PeopleComponent,
-})
-
-function PeopleComponent() {
-  const data = Route.useLoaderData()
-  return (
-    <ul>
-      {data.results.map((person) => (
-        <li key={person.name}>{person.name}</li>
-      ))}
-    </ul>
-  )
-}
-```
-
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
-
-# Demo files
-
-Files prefixed with `demo` can be safely deleted. They are there to provide a starting point for you to play around with the features you've installed.
-
-# Learn More
-
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
-
-For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
+No license has been selected yet. Add a license before accepting external contributions or redistributing the project.

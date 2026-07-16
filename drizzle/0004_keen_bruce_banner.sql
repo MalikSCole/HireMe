@@ -1,0 +1,1 @@
+ALTER TABLE "problems" ADD COLUMN "topic" varchar(80) DEFAULT 'arrays' NOT NULL;

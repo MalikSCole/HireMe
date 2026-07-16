@@ -1,14 +1,67 @@
-node_modules
-.DS_Store
-dist
-dist-ssr
-*.local
-.env
-.nitro
-.tanstack
-.wrangler
-.output
-.vinxi
+# Dependencies
+node_modules/
+
+# Build and framework output
+dist/
+dist-ssr/
+.output/
+.nitro/
+.tanstack/
+.vinxi/
+.wrangler/
+coverage/
 __unconfig*
+
+# Local environment variables and secrets
+.env
+.env.*
+!.env.example
+*.local
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+
+# Local databases and container data
+*.db
+*.sqlite
+*.sqlite3
+postgres-data/
+data/postgres/
+
+# Machine-learning models and checkpoints
+models/
+checkpoints/
+services/codeberta/models/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+
+# Logs and runtime files
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.pid
+
+# Python cache and virtual environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Editor and operating-system files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local task files
 todos.json
-.env.local

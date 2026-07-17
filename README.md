@@ -6,8 +6,8 @@ The project is built with TanStack Start, React, TypeScript, PostgreSQL, and Dri
 
 ## Highlights
 
-- 19 Python DSA problems across arrays, hashing, two pointers, sliding windows, stacks, binary search, heaps, graphs, and dynamic programming
-- 24 structured DSA and React lessons with diagrams, worked examples, complexity analysis, common pitfalls, and knowledge checks
+- 35 Python DSA problems, including the first 25 problems in the topic-ordered Blind 75 roadmap
+- 40 structured DSA and React lessons with diagrams, worked examples, complexity analysis, common pitfalls, and knowledge checks
 - Monaco-based Python problem workspace with starter code and saved drafts
 - Visible test runs and authenticated submissions against hidden test cases
 - Sandboxed Python execution through a separately hosted Piston service
@@ -18,6 +18,22 @@ The project is built with TanStack Start, React, TypeScript, PostgreSQL, and Dri
 - Progressive, prewritten hints that do not expose hidden test data
 - Optional CodeBERTa optimization classifier with automatic AST-only fallback
 - Optional Groq-powered Socratic tutor for hints, edge cases, and code review
+
+## Blind 75 curriculum
+
+The DSA curriculum includes the first 25 problems from the topic-ordered Blind 75 roadmap. Existing catalog problems are reused instead of duplicated, and every problem is paired with progressive hints, visible and hidden tests, and a related visual lesson.
+
+| Topic              | Problems                                                                                                                                                                   |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Arrays and hashing | Contains Duplicate, Valid Anagram, Two Sum, Group Anagrams, Top K Frequent Elements, Encode and Decode Strings, Product of Array Except Self, Longest Consecutive Sequence |
+| Two pointers       | Valid Palindrome, 3Sum, Container With Most Water                                                                                                                          |
+| Sliding window     | Best Time to Buy and Sell Stock, Longest Substring Without Repeating Characters, Longest Repeating Character Replacement, Minimum Window Substring                         |
+| Stack              | Valid Parentheses                                                                                                                                                          |
+| Binary search      | Find Minimum in Rotated Sorted Array, Search in Rotated Sorted Array                                                                                                       |
+| Linked lists       | Reverse Linked List, Merge Two Sorted Lists, Reorder List, Remove Nth Node From End of List, Linked List Cycle, Merge K Sorted Lists                                       |
+| Trees              | Invert Binary Tree                                                                                                                                                         |
+
+Linked-list inputs are represented as JSON arrays, with an additional cycle position where necessary. Trees use level-order JSON arrays containing `null` for missing children. These representations keep the exercises compatible with the Python execution service while teaching the underlying pointer and tree algorithms in their associated lessons.
 
 ## Screens and workflows
 

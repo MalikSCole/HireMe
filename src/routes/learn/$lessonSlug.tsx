@@ -10,6 +10,40 @@ import { completeLesson, submitKnowledgeCheck } from "../../features/lessons/fun
 import { getSession } from "../../lib/auth-functions";
 
 const ReactLessonPlayground = lazy(() => import("../../components/react-lesson-playground").then((module) => ({ default: module.ReactLessonPlayground })));
+const InlineReactEditor = lazy(() => import("../../components/react-lesson-playground").then((module) => ({ default: module.InlineReactEditor })));
+const SystemDesignBuilder = lazy(() => import("../../components/system-design-builder").then((module) => ({ default: module.SystemDesignBuilder })));
+
+type CurriculumLessonContent = {
+  format: "curriculum-v1";
+  learningObjectives: string[];
+  sections: Array<{ title: string; body: string }>;
+  visualization?: { prompt: string };
+  workedExample?: { title: string; body: string };
+  practice?: { problemSlug: string; framing: string };
+  replay?: { prompt: string };
+  quiz?: { prompt: string };
+  aiFeedback?: { prompt: string };
+};
+
+function parseCurriculumContent(content: string): CurriculumLessonContent | null {
+  try {
+    const parsed = JSON.parse(content) as Partial<CurriculumLessonContent>;
+    if (parsed.format !== "curriculum-v1" || !Array.isArray(parsed.sections)) return null;
+    return {
+      format: "curriculum-v1",
+      learningObjectives: Array.isArray(parsed.learningObjectives) ? parsed.learningObjectives : [],
+      sections: parsed.sections.filter((section) => section.title && section.body),
+      visualization: parsed.visualization,
+      workedExample: parsed.workedExample,
+      practice: parsed.practice,
+      replay: parsed.replay,
+      quiz: parsed.quiz,
+      aiFeedback: parsed.aiFeedback,
+    };
+  } catch {
+    return null;
+  }
+}
 
 const getLesson = createServerFn({ method: "GET" })
   .validator((slug: string) => slug)
@@ -64,6 +98,7 @@ function LessonPage() {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(lesson.previousAttempt?.selectedIndex ?? null);
   const [quizResult, setQuizResult] = useState<{ passed: boolean; correctIndex: number; explanation: string } | null>(null);
   const [quizPending, setQuizPending] = useState(false);
+  const curriculumContent = parseCurriculumContent(lesson.content);
 
   async function markComplete() {
     setPending(true);
@@ -97,9 +132,14 @@ function LessonPage() {
       <h1 className="mt-2 text-4xl font-bold">{lesson.title}</h1>
       <p className="mt-4 text-lg text-gray-600">{lesson.summary}</p>
 
-      <LessonDiagram lessonSlug={lesson.slug} />
-
-      <article className="mt-10 space-y-6">{lesson.content.split("\n\n").map((block, index) => index % 2 === 0 ? <h2 key={block} className="text-2xl font-semibold">{block}</h2> : <p key={block} className="leading-7 text-gray-700">{block}</p>)}</article>
+      {curriculumContent ? (
+        <CurriculumLessonBody lessonSlug={lesson.slug} content={curriculumContent} />
+      ) : (
+        <>
+          <LessonDiagram lessonSlug={lesson.slug} />
+          <article className="mt-10 space-y-6">{lesson.content.split("\n\n").map((block, index) => index % 2 === 0 ? <h2 key={block} className="text-2xl font-semibold">{block}</h2> : <p key={block} className="leading-7 text-gray-700">{block}</p>)}</article>
+        </>
+      )}
 
       {lesson.courseSlug === "react-foundations" && (
         <Suspense fallback={<div className="mt-12 rounded-xl border bg-gray-50 p-8 text-center text-gray-600">Loading interactive preview…</div>}>
@@ -129,5 +169,122 @@ function LessonPage() {
         {error && <p className="w-full text-sm text-red-700">{error}</p>}
       </section>
     </main>
+  );
+}
+
+function CurriculumLessonBody({ lessonSlug, content }: { lessonSlug: string; content: CurriculumLessonContent }) {
+  return (
+    <>
+      {content.learningObjectives.length > 0 && (
+        <section className="mt-10 rounded-lg border bg-gray-50 p-6">
+          <p className="text-sm font-semibold uppercase tracking-wider text-blue-700">Learning objectives</p>
+          <ul className="mt-4 space-y-2 text-gray-700">
+            {content.learningObjectives.map((objective) => (
+              <li key={objective} className="flex gap-3">
+                <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-blue-600" />
+                <span>{objective}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <article className="mt-10 space-y-8">
+        <section>
+          <p className="text-sm font-semibold uppercase tracking-wider text-blue-700">Interactive explanation</p>
+          <div className="mt-4 space-y-6">
+            {content.sections.map((section) => (
+              <section key={section.title}>
+                <h2 className="text-2xl font-semibold">{section.title}</h2>
+                <LessonRichText body={section.body} />
+              </section>
+            ))}
+          </div>
+        </section>
+      </article>
+
+      <section className="mt-10">
+        <div className="mb-4">
+          <p className="text-sm font-semibold uppercase tracking-wider text-blue-700">Visualization</p>
+          {content.visualization?.prompt && <p className="mt-1 text-sm text-gray-600">{content.visualization.prompt}</p>}
+        </div>
+        <LessonDiagram lessonSlug={lessonSlug} />
+      </section>
+
+      {lessonSlug.startsWith("system-design-") && (
+        <Suspense fallback={<div className="mt-10 rounded-xl border bg-gray-50 p-8 text-center text-gray-600">Loading architecture builder...</div>}>
+          <SystemDesignBuilder lessonSlug={lessonSlug} />
+        </Suspense>
+      )}
+
+      {content.workedExample && (
+        <section className="mt-10 rounded-lg border p-6">
+          <p className="text-sm font-semibold uppercase tracking-wider text-blue-700">Worked example</p>
+          <h2 className="mt-2 text-2xl font-semibold">{content.workedExample.title}</h2>
+          <LessonRichText body={content.workedExample.body} />
+        </section>
+      )}
+
+      <section className="mt-10 grid gap-4 sm:grid-cols-2">
+        {content.practice && <LessonStepCard label="Practice problem" body={content.practice.framing} />}
+        {content.replay && <LessonStepCard label="Replay" body={content.replay.prompt} />}
+        {content.quiz && <LessonStepCard label="Quiz" body={content.quiz.prompt} />}
+        {content.aiFeedback && <LessonStepCard label="AI feedback" body={content.aiFeedback.prompt} />}
+      </section>
+    </>
+  );
+}
+
+function LessonRichText({ body }: { body: string }) {
+  const parts = body.split(/```(\w+)?\n([\s\S]*?)```/g);
+  return (
+    <div className="mt-2 space-y-3">
+      {parts.map((part, index) => {
+        if (index % 3 === 2) {
+          return <EditableCodeBlock key={`${index}-${part.slice(0, 20)}`} code={part.trim()} language={parts[index - 1] || "code"} />;
+        }
+        if (index % 3 === 1 || part.trim() === "") return null;
+        return <p key={`${index}-${part.slice(0, 20)}`} className="leading-7 text-gray-700 whitespace-pre-line">{part.trim()}</p>;
+      })}
+    </div>
+  );
+}
+
+function EditableCodeBlock({ code, language }: { code: string; language: string }) {
+  const [value, setValue] = useState(code);
+  const lineCount = Math.max(8, value.split("\n").length + 1);
+  const canPreview = ["tsx", "jsx", "ts", "js"].includes(language.toLowerCase());
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-gray-800 bg-gray-950">
+      <div className="flex items-center justify-between border-b border-gray-800 px-3 py-2">
+        <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">{language}</span>
+        <button type="button" onClick={() => setValue(code)} className="rounded border border-gray-700 px-2 py-1 text-xs font-medium text-gray-200 hover:bg-gray-800">Reset</button>
+      </div>
+      <textarea
+        aria-label={`Editable ${language} code`}
+        spellCheck={false}
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+        rows={lineCount}
+        className="block w-full resize-y bg-gray-950 p-4 font-mono text-sm leading-6 text-gray-100 outline-none"
+      />
+      {canPreview && (
+        <div className="border-t border-gray-800 bg-white">
+          <Suspense fallback={<div className="p-4 text-sm text-gray-600">Loading preview...</div>}>
+            <InlineReactEditor code={value} />
+          </Suspense>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LessonStepCard({ label, body }: { label: string; body: string }) {
+  return (
+    <div className="rounded-lg border bg-white p-5">
+      <p className="text-sm font-semibold uppercase tracking-wider text-blue-700">{label}</p>
+      <p className="mt-2 text-sm leading-6 text-gray-700">{body}</p>
+    </div>
   );
 }

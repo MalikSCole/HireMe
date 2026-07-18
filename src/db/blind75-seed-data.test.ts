@@ -8,25 +8,32 @@ import {
 
 describe('Blind 75 seed expansion', () => {
   it('adds one lesson and knowledge check for every new problem', () => {
-    expect(blind75ProblemCatalog).toHaveLength(16)
-    expect(blind75LessonCatalog).toHaveLength(16)
-    expect(blind75QuestionCatalog).toHaveLength(16)
+    expect(blind75ProblemCatalog).toHaveLength(75)
+    expect(blind75LessonCatalog).toHaveLength(75)
+    expect(blind75QuestionCatalog).toHaveLength(75)
 
     const problemSlugs = new Set(
       blind75ProblemCatalog.map((problem) => problem.slug),
     )
-    expect(problemSlugs.size).toBe(16)
+    expect(problemSlugs.size).toBe(75)
     expect(
       new Set(blind75LessonCatalog.map((lesson) => lesson.slug)).size,
-    ).toBe(16)
+    ).toBe(75)
     expect(
       new Set(blind75QuestionCatalog.map((question) => question.lessonSlug))
         .size,
-    ).toBe(16)
+    ).toBe(75)
 
     for (const lesson of blind75LessonCatalog) {
       expect(problemSlugs.has(lesson.practiceProblemSlug)).toBe(true)
-      expect(lesson.content.split('\n\n').length).toBeGreaterThanOrEqual(10)
+      const content = JSON.parse(lesson.content)
+      expect(content.format).toBe('curriculum-v1')
+      expect(content.learningObjectives.length).toBeGreaterThanOrEqual(4)
+      expect(content.sections.length).toBeGreaterThanOrEqual(3)
+      expect(content.workedExample.body).toBeTruthy()
+      expect(content.practice.problemSlug).toBe(lesson.practiceProblemSlug)
+      expect(content.quiz.prompt).toBeTruthy()
+      expect(content.aiFeedback.prompt).toBeTruthy()
     }
   })
 

@@ -180,9 +180,12 @@ const blind75PatternDiagrams: Partial<
 }
 
 export function LessonDiagram({ lessonSlug }: DiagramProps) {
-  const patternDiagram = blind75PatternDiagrams[lessonSlug]
+  const patternDiagram =
+    blind75PatternDiagrams[lessonSlug] ?? getGeneratedBlind75Diagram(lessonSlug)
   const diagram = patternDiagram ? (
     <PatternFlowDiagram {...patternDiagram} />
+  ) : lessonSlug.startsWith('system-design-') ? (
+    <SystemDesignArchitectureDiagram lessonSlug={lessonSlug} />
   ) : (
     {
       'understanding-big-o': <BigODiagram />,
@@ -204,10 +207,21 @@ export function LessonDiagram({ lessonSlug }: DiagramProps) {
       'heaps-and-top-k-selection': <HeapDiagram />,
       'grid-traversal-connected-components': <GridTraversalDiagram />,
       'one-dimensional-dynamic-programming': <DynamicProgrammingDiagram />,
+      'react-readiness-diagnostic': <ArrayScanDiagram />,
       'react-components-and-props': <ComponentTreeDiagram />,
+      'react-props-and-reusable-components': <ComponentTreeDiagram />,
       'react-state-and-events': <StateLoopDiagram />,
+      'react-forms-and-validation': <StateLoopDiagram />,
+      'react-component-communication': <StateLoopDiagram />,
       'react-effects-and-synchronization': <EffectDiagram />,
       'react-conditional-rendering-and-lists': <ListIdentityDiagram />,
+      'tanstack-router-foundations': <ComponentTreeDiagram />,
+      'tanstack-query-server-state': <EffectDiagram />,
+      'react-context-shared-state': <ComponentTreeDiagram />,
+      'react-performance-rendering': <StateLoopDiagram />,
+      'react-testing-applications': <ListIdentityDiagram />,
+      'react-accessibility-production-quality': <ComponentTreeDiagram />,
+      'react-learning-dashboard-capstone': <ComponentTreeDiagram />,
       'react-custom-hooks': <CustomHookDiagram />,
     }[lessonSlug]
   )
@@ -218,6 +232,213 @@ export function LessonDiagram({ lessonSlug }: DiagramProps) {
       {diagram}
     </section>
   )
+}
+
+function SystemDesignArchitectureDiagram({ lessonSlug }: { lessonSlug: string }) {
+  const isEventDriven =
+    /queue|event|pub-sub|write-heavy|cqrs|chat|discord|timeline|tiktok/.test(
+      lessonSlug,
+    )
+  const isMedia =
+    /youtube|netflix|instagram|dropbox|spotify|blob|cdn|tiktok/.test(lessonSlug)
+  const nodes = isMedia
+    ? ['Client', 'API Gateway', 'Metadata Service', 'Object Storage', 'CDN']
+    : isEventDriven
+      ? ['Producer', 'API Service', 'Queue', 'Worker', 'Database']
+      : ['Browser', 'Load Balancer', 'App Servers', 'Cache', 'Database']
+
+  return (
+    <div>
+      <h2 className="text-lg font-semibold">Trace the architecture path</h2>
+      <p className="mt-1 text-sm text-gray-600">
+        Follow one request or event from left to right. Each box has a job, a
+        reason to exist, and a cost.
+      </p>
+      <div className="mt-6 grid gap-3 md:grid-cols-[repeat(5,minmax(0,1fr))] md:items-stretch">
+        {nodes.map((node, index) => (
+          <div key={node} className="relative rounded-lg border bg-white p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+              {index === 0 ? 'Entry' : index === nodes.length - 1 ? 'State' : `Layer ${index}`}
+            </p>
+            <p className="mt-2 text-sm font-semibold">{node}</p>
+            <p className="mt-2 text-xs leading-5 text-gray-600">
+              {architectureNodeHelp[node] ?? 'Moves data through the design while adding a tradeoff.'}
+            </p>
+            {index < nodes.length - 1 && (
+              <span className="absolute -right-3 top-1/2 hidden -translate-y-1/2 text-xl text-gray-400 md:block">
+                →
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="mt-5 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">
+        Ask: what happens when this box is slow, unavailable, too expensive, or
+        receives 10x more traffic?
+      </div>
+    </div>
+  )
+}
+
+const architectureNodeHelp: Record<string, string> = {
+  Browser: 'Starts user requests and receives rendered or API responses.',
+  Client: 'Mobile or web app that sends user actions to backend systems.',
+  'Load Balancer': 'Spreads traffic across healthy application instances.',
+  'App Servers': 'Run business logic and coordinate storage or cache calls.',
+  Cache: 'Serves repeated hot reads quickly, usually from memory.',
+  Database: 'Stores durable source-of-truth data and supports queries.',
+  Producer: 'Creates an event when work should happen asynchronously.',
+  'API Service': 'Validates requests and accepts commands or events.',
+  Queue: 'Buffers work so spikes do not overload downstream systems.',
+  Worker: 'Processes background jobs outside the user request path.',
+  'API Gateway': 'Routes requests, enforces auth, and centralizes edge policy.',
+  'Metadata Service': 'Stores searchable facts about large objects.',
+  'Object Storage': 'Stores large binary files outside the primary database.',
+  CDN: 'Caches static or media content near users around the world.',
+}
+
+function getGeneratedBlind75Diagram(lessonSlug: string) {
+  if (!lessonSlug.endsWith('-mental-model')) return null
+
+  const problemSlug = lessonSlug.replace(/-mental-model$/, '')
+
+  if (/(two-sum|contains-duplicate|valid-anagram|accounts-merge)/.test(problemSlug)) {
+    return {
+      title: 'Remember what the scan has already proved',
+      description:
+        'Hash-based problems trade repeated searching for constant-time questions about prior values.',
+      steps: ['Read one candidate', 'Update or query remembered state', 'Use the answer only when the invariant matches'],
+      result: 'The map or set turns past work into immediate evidence',
+    } as const
+  }
+
+  if (/(palindrome|three-sum|container)/.test(problemSlug)) {
+    return {
+      title: 'Pointers move because order gives direction',
+      description:
+        'Two-pointer problems work when a sorted or mirrored structure tells which side can be safely discarded.',
+      steps: ['Place pointers at meaningful boundaries', 'Compare the current pair or range', 'Move the side that cannot improve'],
+      result: 'Each move removes candidates with a reason',
+    } as const
+  }
+
+  if (/(substring|window|replacement)/.test(problemSlug)) {
+    return {
+      title: 'A window expands, breaks, repairs, and records',
+      description:
+        'Sliding-window problems keep a contiguous range plus just enough counts to know whether the range is valid.',
+      steps: ['Expand right', 'Repair by moving left', 'Record the best valid range'],
+      result: 'Every character enters and leaves the window at most once',
+    } as const
+  }
+
+  if (/(binary-search|rotated|median-of-two)/.test(problemSlug)) {
+    return {
+      title: 'Halve only after naming the impossible half',
+      description:
+        'Binary search is a proof technique: every comparison must preserve the side that can still contain the answer.',
+      steps: ['Choose the middle', 'Compare against the invariant', 'Discard the impossible side'],
+      result: 'The candidate range shrinks without losing the answer',
+    } as const
+  }
+
+  if (/(tree|bst|ancestor|serialize|depth|subtree)/.test(problemSlug)) {
+    return {
+      title: 'Each node returns a promise to its parent',
+      description:
+        'Tree algorithms become manageable when each recursive call has a small contract.',
+      steps: ['Handle the missing-node base case', 'Ask children for their answers', 'Combine child answers at the parent'],
+      result: 'The whole tree is solved by repeating one local rule',
+    } as const
+  }
+
+  if (/(course|islands|graph|pacific|alien|clone)/.test(problemSlug)) {
+    return {
+      title: 'Traversal turns relationships into visited state',
+      description:
+        'Graph problems are about reachability, components, cycles, and dependency order.',
+      steps: ['Build neighbors', 'Traverse from a frontier', 'Mark visited or detect cycles'],
+      result: 'The visited state explains what has been proven reachable',
+    } as const
+  }
+
+  if (/(word-search|combination-sum)/.test(problemSlug)) {
+    return {
+      title: 'Backtracking explores one choice stack',
+      description:
+        'A backtracking search makes a choice, explores its consequences, then undoes the choice before trying the next branch.',
+      steps: ['Choose a candidate', 'Explore recursively', 'Unchoose to restore state'],
+      result: 'Every branch sees a clean version of the partial answer',
+    } as const
+  }
+
+  if (/(trie|word-search-ii)/.test(problemSlug)) {
+    return {
+      title: 'Prefixes prune impossible words early',
+      description:
+        'A trie stores shared prefixes so the search can stop the moment a prefix is absent.',
+      steps: ['Walk one character', 'Follow the matching child', 'Stop if the prefix disappears'],
+      result: 'The trie avoids exploring branches no word can use',
+    } as const
+  }
+
+  if (/(heap|median|top-k|meeting-rooms-ii)/.test(problemSlug)) {
+    return {
+      title: 'A heap keeps the next best frontier item visible',
+      description:
+        'Priority queues are useful when many candidates exist but only the smallest, largest, or middle boundary matters next.',
+      steps: ['Push active candidates', 'Pop or peek the priority item', 'Rebalance or advance the frontier'],
+      result: 'The next decision is available without sorting everything again',
+    } as const
+  }
+
+  if (/(interval|meeting-rooms)/.test(problemSlug)) {
+    return {
+      title: 'Sorted boundaries reveal overlaps',
+      description:
+        'Interval problems become linear after sorting because overlap decisions only depend on nearby boundaries.',
+      steps: ['Sort by start or end', 'Compare with the active interval', 'Merge, keep, remove, or allocate'],
+      result: 'A local boundary decision preserves the global schedule',
+    } as const
+  }
+
+  if (/(matrix|spiral|rotate|zeroes)/.test(problemSlug)) {
+    return {
+      title: 'Rows, columns, and boundaries are the state',
+      description:
+        'Matrix problems become less mysterious when every move is expressed as row and column changes.',
+      steps: ['Name the boundaries', 'Move through one direction', 'Shrink or mark before continuing'],
+      result: 'Coordinate rules replace guesswork',
+    } as const
+  }
+
+  if (/(bits|number|sum-of-two|missing)/.test(problemSlug)) {
+    return {
+      title: 'Bits solve one binary position at a time',
+      description:
+        'Bit manipulation is arithmetic with explicit carry, mask, shift, and cancellation rules.',
+      steps: ['Inspect the lowest bit', 'Apply mask, xor, or carry logic', 'Shift to the next position'],
+      result: 'Small binary identities replace larger arithmetic work',
+    } as const
+  }
+
+  if (/(rob|coin|decode|paths|stairs|subsequence|subarray|product)/.test(problemSlug)) {
+    return {
+      title: 'Dynamic programming saves solved subproblems',
+      description:
+        'DP works when the answer for a larger state can be assembled from smaller states.',
+      steps: ['Define what dp[i] means', 'Write the recurrence', 'Fill states in dependency order'],
+      result: 'The table turns exponential reconsideration into reuse',
+    } as const
+  }
+
+  return {
+    title: 'State, invariant, move, answer',
+    description:
+      'Every DSA pattern becomes easier when you can name the state and the rule that keeps it trustworthy.',
+    steps: ['Initialize state', 'Make one valid move', 'Update the answer from trusted state'],
+    result: 'Correctness comes from preserving the invariant',
+  } as const
 }
 
 function PatternFlowDiagram({

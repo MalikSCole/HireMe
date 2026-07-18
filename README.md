@@ -1,18 +1,20 @@
 # Code Learning Platform
 
-A full-stack programming education platform for learning data structures, algorithms, and React through lessons, visual explanations, quizzes, coding challenges, and sandboxed code execution.
+A full-stack programming education platform for learning data structures, algorithms, React, and system design through structured lessons, visual explanations, quizzes, coding challenges, architecture exercises, and sandboxed code execution.
 
 The project is built with TanStack Start, React, TypeScript, PostgreSQL, and Drizzle ORM. Python submissions are evaluated by a separate Piston service so learner code is never executed inside the web application process.
 
 ## Highlights
 
-- 35 Python DSA problems, including the first 25 problems in the topic-ordered Blind 75 roadmap
-- 40 structured DSA and React lessons with diagrams, worked examples, complexity analysis, common pitfalls, and knowledge checks
+- Full Blind 75 DSA catalog with Python starter code, progressive hints, visible tests, hidden tests, and structured lessons
+- React Foundations path with 85 lessons, live editable examples, Sandpack previews, and component challenges
+- System Design Foundations track with 46 lessons across foundations, building blocks, patterns, design problems, interview mode, and capstone work
 - Monaco-based Python problem workspace with starter code and saved drafts
 - Visible test runs and authenticated submissions against hidden test cases
 - Sandboxed Python execution through a separately hosted Piston service
 - Submission history, problem progress, lesson completion, streaks, achievements, and personalized recommendations
 - Interactive React lessons and Sandpack-based component challenges
+- Interactive system design architecture builder powered by XYFlow, with draggable nodes, connectable edges, minimap, zoom controls, and design-review hints
 - AST-based Python feedback for complexity signals and common implementation patterns
 - Step-by-step execution replay with specialized algorithm visualizations
 - Progressive, prewritten hints that do not expose hidden test data
@@ -21,19 +23,54 @@ The project is built with TanStack Start, React, TypeScript, PostgreSQL, and Dri
 
 ## Blind 75 curriculum
 
-The DSA curriculum includes the first 25 problems from the topic-ordered Blind 75 roadmap. Existing catalog problems are reused instead of duplicated, and every problem is paired with progressive hints, visible and hidden tests, and a related visual lesson.
+The DSA curriculum includes the full Blind 75 roadmap. Existing catalog problems are reused instead of duplicated, and every problem is paired with progressive hints, visible and hidden tests, and a related visual lesson.
 
-| Topic              | Problems                                                                                                                                                                   |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Arrays and hashing | Contains Duplicate, Valid Anagram, Two Sum, Group Anagrams, Top K Frequent Elements, Encode and Decode Strings, Product of Array Except Self, Longest Consecutive Sequence |
-| Two pointers       | Valid Palindrome, 3Sum, Container With Most Water                                                                                                                          |
-| Sliding window     | Best Time to Buy and Sell Stock, Longest Substring Without Repeating Characters, Longest Repeating Character Replacement, Minimum Window Substring                         |
-| Stack              | Valid Parentheses                                                                                                                                                          |
-| Binary search      | Find Minimum in Rotated Sorted Array, Search in Rotated Sorted Array                                                                                                       |
-| Linked lists       | Reverse Linked List, Merge Two Sorted Lists, Reorder List, Remove Nth Node From End of List, Linked List Cycle, Merge K Sorted Lists                                       |
-| Trees              | Invert Binary Tree                                                                                                                                                         |
+| Topic               | Coverage examples                                                                                                                             |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Arrays and hashing  | Two Sum, Contains Duplicate, Valid Anagram, Group Anagrams, Top K Frequent Elements, Product Except Self, Longest Consecutive Sequence        |
+| Two pointers/window | Valid Palindrome, 3Sum, Container With Most Water, Longest Substring Without Repeating Characters, Character Replacement, Minimum Window       |
+| Stack/search        | Valid Parentheses, Find Minimum in Rotated Sorted Array, Search in Rotated Sorted Array, Find Median of Two Sorted Arrays                     |
+| Linked lists        | Reverse Linked List, Merge Two Sorted Lists, Reorder List, Remove Nth Node From End, Linked List Cycle, Merge K Sorted Lists                 |
+| Trees               | Invert Binary Tree, Same Tree, Subtree, LCA of BST, Level Order, Validate BST, Kth Smallest, Build Tree, Max Path Sum, Serialize/Deserialize |
+| Graphs and tries    | Clone Graph, Course Schedule, Pacific Atlantic, Number of Islands, Valid Tree, Connected Components, Alien Dictionary, Trie, Word Search II   |
+| Dynamic programming | Climbing Stairs, Coin Change, House Robber I/II, Decode Ways, Unique Paths, Word Break, LIS, Maximum Subarray/Product                        |
+| Intervals/matrix/bit| Meeting Rooms I/II, Insert/Merge/Erase Intervals, Rotate Image, Spiral Matrix, Set Matrix Zeroes, Counting Bits, Reverse Bits, Get Sum       |
 
 Linked-list inputs are represented as JSON arrays, with an additional cycle position where necessary. Trees use level-order JSON arrays containing `null` for missing children. These representations keep the exercises compatible with the Python execution service while teaching the underlying pointer and tree algorithms in their associated lessons.
+
+## React curriculum
+
+The React Foundations course is organized around mental models and progressively larger implementation tasks. Lessons include editable code examples, live Sandpack previews, prediction exercises, bug-fix prompts, build targets, and review questions.
+
+The path covers JavaScript/TypeScript prerequisites, JSX, components, props, conditional rendering, lists, state, events, forms, component communication, effects, TanStack Router, TanStack Query, context, custom hooks, performance, testing, accessibility, and a capstone learning dashboard.
+
+## System design curriculum
+
+The System Design Foundations course teaches a repeatable design process:
+
+```text
+Problem Statement
+      ↓
+Functional Requirements
+      ↓
+Non-Functional Requirements
+      ↓
+Estimate Scale
+      ↓
+Design Components
+      ↓
+Discuss Tradeoffs
+      ↓
+Interactive Architecture Builder
+      ↓
+AI Design Review
+      ↓
+Reference Solution
+      ↓
+Quiz
+```
+
+The track currently includes 46 lessons across foundations, common building blocks, design patterns, beginner design problems, intermediate designs, advanced designs, AI interview mode, and a capstone. System design lessons include an XYFlow-powered architecture builder where learners can add components, drag nodes, connect edges, inspect component tradeoffs, and receive design-review prompts.
 
 ## Screens and workflows
 
@@ -74,6 +111,7 @@ Browser
   ├── TanStack Router pages
   ├── Monaco Python editor
   └── Sandpack React preview
+  └── XYFlow architecture builder
   │
 TanStack Start server functions
   ├── Better Auth session checks
@@ -96,6 +134,7 @@ The application sends source code and a generated test harness to Piston. Visibl
 | Routing               | TanStack Router                       |
 | Python editor         | Monaco Editor                         |
 | React playground      | CodeSandbox Sandpack                  |
+| Architecture builder  | XYFlow / React Flow                   |
 | Database              | PostgreSQL 17                         |
 | ORM and migrations    | Drizzle ORM and Drizzle Kit           |
 | Authentication        | Better Auth                           |
@@ -243,7 +282,7 @@ npm run db:seed
 npm run db:studio
 ```
 
-The seed script is designed to be repeatable: problems, lessons, quizzes, tests, and React challenges are updated through stable slugs or unique positions.
+The seed script is designed to be repeatable: problems, lessons, quizzes, tests, React challenges, and system design lessons are updated through stable slugs or unique positions.
 
 ## Available scripts
 
@@ -288,13 +327,13 @@ npm run build
 git diff --check
 ```
 
-Current automated coverage includes unit tests for achievement calculation. Expanding coverage for server functions, judge response normalization, authentication boundaries, and browser workflows is a planned production-hardening step.
+Current automated coverage includes achievement calculation and Blind 75 seed integrity. Expanding coverage for server functions, judge response normalization, authentication boundaries, architecture-builder workflows, and browser journeys is a planned production-hardening step.
 
 ## Project structure
 
 ```text
 src/
-├── components/          # Editors, diagrams, replays, roadmaps, and challenge UI
+├── components/          # Editors, diagrams, replays, roadmaps, architecture builder, and challenge UI
 ├── db/                  # Drizzle client, schema, and curriculum seed data
 ├── features/
 │   ├── analysis/        # AST and optional CodeBERTa feedback
@@ -317,10 +356,11 @@ docker-compose.yml       # Local PostgreSQL
 Implemented:
 
 - Authentication and persisted learning progress
-- DSA and React curricula
+- Full Blind 75, React Foundations, and System Design Foundations curricula
 - Python run and submit workflow
 - Hidden tests and submission history
 - React coding challenges
+- System design architecture builder
 - AST feedback and execution visualization
 - Streaks, achievements, and recommendations
 
@@ -330,13 +370,14 @@ Planned improvements:
 - Distributed production rate limiting and submission quotas
 - Persistent discussion threads and user profiles
 - Administrative curriculum editor
+- Persisted architecture-builder submissions and deeper AI system design review
 - Topic-mastery scoring and deeper personalized recommendations
 - Production deployment and observability
 - Fine-tuned CodeBERTa checkpoint evaluation
 
 ## Resume summary
 
-> Built a full-stack programming education platform using TanStack Start, React, TypeScript, PostgreSQL, and Drizzle, featuring sandboxed Python execution, hidden test evaluation, interactive React challenges, AST-based code feedback, execution visualizations, and personalized progress tracking.
+> Built a full-stack programming education platform using TanStack Start, React, TypeScript, PostgreSQL, and Drizzle, featuring full Blind 75 practice, sandboxed Python execution, hidden test evaluation, interactive React challenges, a system design architecture builder, AST-based code feedback, execution visualizations, and personalized progress tracking.
 
 ## License
 

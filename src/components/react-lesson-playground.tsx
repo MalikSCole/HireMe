@@ -298,6 +298,14 @@ main { max-width: 420px; margin: 0 auto; padding: 28px; } h1 { margin: 0 0 20px;
 .center { text-align: center; }.eyebrow { color: #64748b; font-size: 12px; font-weight: 700; letter-spacing: .12em; }.number { font-size: 52px; margin: 12px; }.error { color: #b91c1c; font-weight: 600; }
 .actions { display: flex; justify-content: center; gap: 8px; } button { margin-left: auto; border: 0; border-radius: 7px; background: #2563eb; color: white; padding: 9px 14px; font-weight: 600; cursor: pointer; }`;
 
+// Inline "Fix the bug" / exercise snippets often render bare elements (e.g. a single <p>)
+// with no <main> wrapper, so they'd otherwise sit flush against the top-left edge with no
+// breathing room. Give the inline preview a base padding and readable typography on top of
+// the shared styles, without touching the curated ReactLessonPlayground examples.
+const inlineStyles = `${styles}
+body { padding: 20px 22px; font-size: 15px; line-height: 1.55; }
+body > *:first-child { margin-top: 0; }`;
+
 export function ReactLessonPlayground({ lessonSlug }: { lessonSlug: string }) {
   const example = examples[lessonSlug];
   if (!example) return null;
@@ -328,6 +336,13 @@ type InlineSandbox = {
   files: Record<string, string>;
   activeFile: string;
   visibleFiles: string[];
+  canRun: boolean;
+};
+
+type ComponentModuleSandbox = {
+  componentName: string;
+  componentFile: string;
+  appCode: string;
 };
 
 function splitMarkedFiles(code: string) {
@@ -353,58 +368,298 @@ function splitMarkedFiles(code: string) {
   return Object.keys(materialized).length > 0 ? materialized : null;
 }
 
-function toRunnableCode(code: string) {
-  if (code.includes("export default")) return code;
-  if (code.includes("function App(") || code.includes("function App()")) {
-    return `${code}\n\nexport default App;`;
+function withMissingReactImports(code: string) {
+  if (code.includes('from "react"') || code.includes("from 'react'")) return code;
+  const hooks = ["useState", "useEffect", "useMemo", "useCallback", "useContext"].filter((hook) =>
+    new RegExp(`\\b${hook}\\b`).test(code),
+  );
+  if (hooks.length === 0 && !code.includes("React.")) return code;
+  if (hooks.length === 0) return `import type React from "react";\n\n${code}`;
+  if (code.includes("React.")) return `import React, { ${hooks.join(", ")} } from "react";\n\n${code}`;
+  return `import { ${hooks.join(", ")} } from "react";\n\n${code}`;
+}
+
+function hasOnlyPlaceholderReturn(code: string) {
+  return /return\s*\(\s*(?:\/\/[^\n]*(?:\n\s*)?)+\)/.test(code);
+}
+
+function hasRenderableReturn(code: string) {
+  return /return\s*(?:\(|<)/.test(code) && !hasOnlyPlaceholderReturn(code);
+}
+
+function hasBrokenExerciseJsx(code: string) {
+  return (
+    // Object literal rendered directly as a JSX child, e.g. <p>{ role: "Frontend Developer" }</p>.
+    // Scoped to `>{ ident:` so it ignores inline styles (style={{...}}) and object declarations.
+    />\s*\{\s*[A-Za-z_$][\w$]*\s*:/.test(code) ||
+    // Unclosed void element that JSX requires to self-close, e.g. <img src="..."> or <input ...>
+    /<(?:img|input|br|hr|meta|link|source|area|base|col|embed|track|wbr)\b[^>]*[^/]>/i.test(code)
+  );
+}
+
+// A "bug to fix" snippet contains real code that won't compile/run correctly and is meant to be
+// repaired (wrong attribute names, unclosed tags, object-in-JSX, imperative DOM).
+function hasBugToFix(code: string) {
+  return (
+    /\b(?:class|for)=["']/.test(code) ||
+    hasBrokenExerciseJsx(code) ||
+    /\bdocument\.(querySelector|getElementById|createElement|body|head)\b/.test(code)
+  );
+}
+
+// An "incomplete" snippet is a build stub with placeholders the learner must fill in.
+function hasIncompletePlaceholders(code: string) {
+  return (
+    code.includes("...") ||
+    /\/\/\s*(Render|Add|Use|Show|Control|Validate|Create|Fetch|Return|Read|Type|Click|Assert|Clear|Keep|Derive|Let|Start|Move|Split|Import)\b/i.test(code) ||
+    /\/\*\s*[^*]*(todo|200 lines|render|add|use|show|control|validate|create|fetch|return)[^*]*\*\//i.test(code)
+  );
+}
+
+function hasTeachingPlaceholders(code: string) {
+  return hasBugToFix(code) || hasIncompletePlaceholders(code);
+}
+
+// Why the live preview is withheld, so the UI can explain it in the snippet's own terms.
+function lockReason(code: string): "bug" | "incomplete" | null {
+  if (hasBugToFix(code)) return "bug";
+  if (hasIncompletePlaceholders(code)) return "incomplete";
+  return null;
+}
+
+function samplePropValue(name: string, typeHint = "") {
+  const lowerName = name.toLowerCase();
+  const lowerType = typeHint.toLowerCase();
+
+  if (lowerType.includes("number") || lowerName.includes("count") || lowerName.includes("total") || lowerName.includes("completed")) {
+    return lowerName.includes("total") ? "{5}" : "{3}";
   }
-  if (code.includes("return <") || code.includes("return (")) {
-    const indentedCode = code
+  if (lowerType.includes("boolean") || lowerName.startsWith("is") || lowerName.includes("open") || lowerName.includes("done")) {
+    return "{true}";
+  }
+  if (lowerName.includes("status")) return '"complete"';
+  if (lowerName.includes("role")) return '"Frontend Developer"';
+  if (lowerName.includes("rating")) return '"PG-13"';
+  if (lowerName.includes("title")) return '"Arrival"';
+  if (lowerName.includes("name")) return '"Maya"';
+  return '"Example"';
+}
+
+function sampleComponentProps(source: string, componentName: string) {
+  const signature = source.match(new RegExp(`function\\s+${componentName}\\s*\\(\\s*\\{([\\s\\S]*?)\\}\\s*(?::\\s*\\{([\\s\\S]*?)\\})?\\s*\\)`));
+  if (!signature) return "";
+
+  const propNames = signature[1]
+    .split(",")
+    .map((part) => part.trim().split(/[:=]/)[0]?.trim())
+    .filter(Boolean);
+  const typeHints = Object.fromEntries(
+    (signature[2] ?? "")
+      .split(";")
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .map((part) => {
+        const [name, type] = part.split(":").map((piece) => piece.trim());
+        return [name?.replace("?", ""), type ?? ""];
+      }),
+  );
+
+  return propNames
+    .map((name) => `${name}=${samplePropValue(name, typeHints[name] ?? "")}`)
+    .join(" ");
+}
+
+function extractTopLevelJsxExamples(code: string) {
+  const lines = code.split("\n");
+  const kept: string[] = [];
+  const examples: string[] = [];
+  let depth = 0;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const isTopLevelJsx = depth === 0 && /^<[A-Z][\s\S]*(?:\/>|>)/.test(trimmed);
+
+    if (isTopLevelJsx) {
+      examples.push(trimmed.endsWith(";") ? trimmed.slice(0, -1) : trimmed);
+    } else {
+      kept.push(line);
+    }
+
+    const withoutStrings = line.replace(/(["'`])(?:\\.|(?!\1).)*\1/g, "");
+    depth += (withoutStrings.match(/{/g) ?? []).length;
+    depth -= (withoutStrings.match(/}/g) ?? []).length;
+    depth = Math.max(0, depth);
+  }
+
+  return { source: kept.join("\n").trim(), examples };
+}
+
+function toDefaultExportedComponent(source: string, componentName: string) {
+  if (new RegExp(`export\\s+default\\s+function\\s+${componentName}\\b`).test(source)) return source;
+  if (new RegExp(`export\\s+function\\s+${componentName}\\b`).test(source)) {
+    return `${source.replace(new RegExp(`export\\s+function\\s+${componentName}\\b`), `function ${componentName}`)}\n\nexport default ${componentName};`;
+  }
+  return source.replace(new RegExp(`function\\s+${componentName}\\b`), `export default function ${componentName}`);
+}
+
+function toComponentModuleSandbox(code: string): ComponentModuleSandbox | null {
+  const source = withMissingReactImports(code);
+  if (source.includes("export default") || source.includes("function App(") || source.includes("function App()")) return null;
+
+  const { source: sourceWithoutExamples, examples } = extractTopLevelJsxExamples(source);
+  if (examples.length > 0) return null;
+
+  const componentMatch = sourceWithoutExamples.match(/function\s+([A-Z][A-Za-z0-9]*)\s*\([^)]*\)\s*{/);
+  if (!componentMatch || !hasRenderableReturn(sourceWithoutExamples)) return null;
+
+  const componentName = componentMatch[1];
+  const props = sampleComponentProps(sourceWithoutExamples, componentName);
+  return {
+    componentName,
+    componentFile: toDefaultExportedComponent(sourceWithoutExamples, componentName),
+    appCode: `import ${componentName} from "./${componentName}";
+
+export default function App() {
+  return <${componentName}${props ? ` ${props}` : ""} />;
+}
+`,
+  };
+}
+
+function toRunnableCode(code: string) {
+  const source = withMissingReactImports(code);
+  if (source.includes("export default")) return source;
+  if (source.includes("function App(") || source.includes("function App()")) {
+    return `${source}\n\nexport default App;`;
+  }
+
+  const { source: sourceWithoutExamples, examples } = extractTopLevelJsxExamples(source);
+  if (examples.length > 0) {
+    return `${sourceWithoutExamples}\n\nexport default function App() {\n  return (\n    <>\n${examples.map((example) => `      ${example}`).join("\n")}\n    </>\n  );\n}`;
+  }
+
+  const componentMatch = sourceWithoutExamples.match(/function\s+([A-Z][A-Za-z0-9]*)\s*\([^)]*\)\s*{/);
+  if (componentMatch && hasRenderableReturn(sourceWithoutExamples)) {
+    const props = sampleComponentProps(sourceWithoutExamples, componentMatch[1]);
+    return `${sourceWithoutExamples}\n\nexport default function App() {\n  return <${componentMatch[1]}${props ? ` ${props}` : ""} />;\n}`;
+  }
+
+  if (hasRenderableReturn(sourceWithoutExamples)) {
+    const indentedCode = sourceWithoutExamples
       .split("\n")
       .map((line) => `  ${line}`)
       .join("\n");
     return `export default function App() {\n${indentedCode}\n}`;
   }
-  return `export default function App() {\n  return (\n    <main>\n      <pre>{${JSON.stringify(code)}}</pre>\n    </main>\n  );\n}`;
+  return `export default function App() {\n  return (\n    <main>\n      <pre>{${JSON.stringify(sourceWithoutExamples || source)}}</pre>\n    </main>\n  );\n}`;
 }
 
 function toInlineSandbox(code: string): InlineSandbox {
+  const canRun = !hasTeachingPlaceholders(code);
   const markedFiles = splitMarkedFiles(code);
+  const entryFile = `import React from "react";
+import { createRoot } from "react-dom/client";
+import App from "./App";
+import "./styles.css";
+
+class PreviewErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 20, fontFamily: "Inter, system-ui, sans-serif" }}>
+          <strong style={{ color: "#b91c1c" }}>This snippet throws an error at runtime.</strong>
+          <pre style={{ margin: "8px 0 0", whiteSpace: "pre-wrap", color: "#b91c1c", fontSize: 13 }}>
+            {String(this.state.error.message || this.state.error)}
+          </pre>
+          <p style={{ margin: "8px 0 0", color: "#64748b", fontSize: 13 }}>
+            Fix the bug in the editor above and the preview will render.
+          </p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
+    <PreviewErrorBoundary>
+      <App />
+    </PreviewErrorBoundary>
+  </React.StrictMode>,
+);
+`;
+
   if (markedFiles) {
     const appFile = ["/App.tsx", "/App.jsx", "/App.ts", "/App.js"].find((file) => markedFiles[file]);
     if (appFile) {
       const files = {
         ...markedFiles,
-        [appFile]: toRunnableCode(markedFiles[appFile]),
+        [appFile]: canRun ? toRunnableCode(markedFiles[appFile]) : markedFiles[appFile],
+        "/index.tsx": entryFile,
       };
 
       return {
         files,
         activeFile: appFile,
         visibleFiles: Object.keys(files),
+        canRun,
+      };
+    }
+  }
+
+  if (canRun) {
+    const componentSandbox = toComponentModuleSandbox(code);
+    if (componentSandbox) {
+      return {
+        files: {
+          [`/${componentSandbox.componentName}.tsx`]: componentSandbox.componentFile,
+          "/App.tsx": componentSandbox.appCode,
+          "/index.tsx": entryFile,
+        },
+        activeFile: `/${componentSandbox.componentName}.tsx`,
+        visibleFiles: [`/${componentSandbox.componentName}.tsx`, "/App.tsx"],
+        canRun,
       };
     }
   }
 
   return {
-    files: { "/App.tsx": toRunnableCode(code) },
+    files: { "/App.tsx": canRun ? toRunnableCode(code) : code, "/index.tsx": entryFile },
     activeFile: "/App.tsx",
     visibleFiles: ["/App.tsx"],
+    canRun,
   };
 }
 
 export function InlineReactEditor({ code }: { code: string }) {
   const sandbox = toInlineSandbox(code);
+  const reason = lockReason(code);
 
   return (
     <SandpackProvider
       key={code}
       template="react-ts"
-      files={{ ...sandbox.files, "/styles.css": styles }}
-      customSetup={{ entry: "/index.js" }}
+      files={{ ...sandbox.files, "/styles.css": inlineStyles }}
+      customSetup={{ entry: "/index.tsx" }}
       options={{ activeFile: sandbox.activeFile, visibleFiles: sandbox.visibleFiles }}
     >
-      <SandpackPreview showOpenInCodeSandbox={false} showRefreshButton style={{ minHeight: 260 }} />
+      {sandbox.canRun ? (
+        <SandpackPreview showOpenInCodeSandbox={false} showRefreshButton style={{ minHeight: 260 }} />
+      ) : (
+        <div className="flex items-start gap-2 bg-white p-4 text-sm text-gray-600">
+          <span aria-hidden className="text-base leading-5">{reason === "bug" ? "🐞" : "🧩"}</span>
+          <span>
+            {reason === "bug"
+              ? "This snippet has a bug that stops it from compiling. Fix it in the editor above and the live preview will appear."
+              : "This snippet is a starting point. Complete the code above and the live preview will appear."}
+          </span>
+        </div>
+      )}
     </SandpackProvider>
   );
 }

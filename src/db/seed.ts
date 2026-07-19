@@ -1366,6 +1366,47 @@ What must a dynamic-programming state definition explain? Exactly what the store
   ...blind75LessonCatalog,
 ] as const
 
+// Whether a snippet actually renders React UI. React preview/exercise modes only make sense for
+// these; plain-TS, DSA, and module snippets have nothing to render and should stay `display`.
+const isReactSnippet = (code: string): boolean => {
+  const htmlTag =
+    /<(?:div|span|p|h[1-6]|section|article|main|button|input|form|label|ul|ol|li|nav|footer|header|img|a|strong|em|small|table|thead|tbody|tr|td|th|pre|code|br|hr|select|option|textarea|fieldset|figure|figcaption|blockquote)\b/i
+  const componentTag = /<[A-Z][A-Za-z0-9]*[\s/>]/ // <UserCard ...>, <Profile />
+  const fragment = /<>|<\/>/
+  return (
+    htmlTag.test(code) ||
+    componentTag.test(code) ||
+    fragment.test(code) ||
+    /className=/.test(code) ||
+    /\b(?:useState|useEffect|useMemo|useCallback|useContext|useRef|useReducer)\b/.test(code) ||
+    /\bReact\.\w/.test(code) ||
+    /export\s+default\s+function\s+App\b/.test(code) ||
+    /:\s*(?:JSX\.Element|React\.(?:ReactNode|FC|ReactElement))\b/.test(code)
+  )
+}
+
+// The preview can only fabricate primitive props for a bare component. A component whose inline
+// prop type has an object/array/custom-typed field (e.g. { movie: Movie }, { tasks: Task[] }) can't
+// be auto-rendered, so it would crash even after the learner fixes the intended bug. Show as `display`.
+const requiresUnfabricableProps = (code: string): boolean =>
+  /:\s*\{[^}]*\b\w+\s*:\s*(?!React\.|JSX\.)(?:[A-Z]\w*|\w+\[\])/.test(code)
+
+// A React snippet is worth a live preview only if the sandbox can actually render it.
+const isPreviewableReactSnippet = (code: string): boolean =>
+  isReactSnippet(code) && !requiresUnfabricableProps(code)
+
+const tagCodeFences = (body: string, mode: 'display' | 'react-preview' | 'react-exercise') =>
+  body.replace(
+    /```(tsx|jsx|ts|js)([^\n]*)\n([\s\S]*?)```/g,
+    (full, lang: string, flags: string, code: string) => {
+      // Respect an explicit mode flag already present on the fence.
+      if (/\b(?:display|react-preview|react-exercise)\b/.test(flags)) return full
+      // Downgrade React preview/exercise to `display` when the snippet can't render meaningfully.
+      const chosen = mode !== 'display' && !isPreviewableReactSnippet(code) ? 'display' : mode
+      return `\`\`\`${lang}${flags} ${chosen}\n${code}\`\`\``
+    },
+  )
+
 const reactStructuredContent = ({
   mentalModel,
   guidedExample,
@@ -1394,15 +1435,15 @@ const reactStructuredContent = ({
       sections: [
         { title: 'Mental model', body: mentalModel },
         { title: 'Guided example', body: guidedExample },
-        { title: 'Predict the output', body: predict },
-        { title: 'Fix the bug', body: fix },
+        { title: 'Predict the output', body: tagCodeFences(predict, 'display') },
+        { title: 'Fix the bug', body: tagCodeFences(fix, 'react-exercise') },
       ],
       visualization: {
         kind: 'pattern-diagram',
         prompt:
           'Use the playground to connect code changes to rendered output and component state.',
       },
-      workedExample: { title: 'Build challenge', body: build },
+      workedExample: { title: 'Build challenge', body: tagCodeFences(build, 'react-exercise') },
       practice: {
         problemSlug: '',
         framing: miniProject,
@@ -4413,6 +4454,27 @@ const systemDesignQuestionCatalog = systemDesignLessonCatalog.map((lesson) => ({
     'System design starts with requirements and scale. Components should follow from constraints, not from memorized diagrams.',
 }))
 
+const reactChallengeProject = ({
+  activeFile,
+  visibleFiles,
+  files,
+}: {
+  activeFile: string
+  visibleFiles: string[]
+  files: Record<string, { code: string; hidden?: boolean; readOnly?: boolean }>
+}) =>
+  JSON.stringify(
+    {
+      template: 'react-ts',
+      activeFile,
+      visibleFiles,
+      dependencies: {},
+      files,
+    },
+    null,
+    2,
+  )
+
 const reactChallengeCatalog = [
   {
     lessonSlug: 'react-components-and-props',
@@ -4427,21 +4489,48 @@ const reactChallengeCatalog = [
       'Render Maya as a Frontend Developer',
       'Render Theo as a Product Designer',
     ],
-    starterCode: `function ProfileCard({ name, role }) {
-  // Return a card that displays both props.
-}
+    starterCode: reactChallengeProject({
+      activeFile: '/components/ProfileCard.tsx',
+      visibleFiles: ['/App.tsx', '/components/ProfileCard.tsx', '/styles.css'],
+      files: {
+        '/App.tsx': {
+          readOnly: true,
+          code: `import { ProfileCard } from "./components/ProfileCard";
 
 export default function App() {
   return (
     <main>
       <h1>Team</h1>
-      {/* Render two different ProfileCard instances. */}
+      <ProfileCard name="Maya" role="Frontend Developer" />
+      <ProfileCard name="Theo" role="Product Designer" />
     </main>
   );
 }`,
+        },
+        '/components/ProfileCard.tsx': {
+          code: `type ProfileCardProps = {
+  name: string;
+  role: string;
+};
+
+export function ProfileCard({ name, role }: ProfileCardProps) {
+  // Return a card that displays both props.
+  return null;
+}
+`,
+        },
+        '/styles.css': {
+          code: `body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #f8fafc; color: #172033; }
+main { max-width: 480px; margin: 0 auto; padding: 32px; }
+article { margin: 12px 0; padding: 16px; border: 1px solid #dbe2ea; border-radius: 10px; background: white; }
+`,
+        },
+      },
+    }),
     testCode: `import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import App from "./App";
+import { ProfileCard } from "./components/ProfileCard";
 
 test("renders two profile cards with different names", () => {
   render(<App />);
@@ -4453,6 +4542,12 @@ test("renders the role passed to each card", () => {
   render(<App />);
   expect(screen.getByText("Frontend Developer")).toBeInTheDocument();
   expect(screen.getByText("Product Designer")).toBeInTheDocument();
+});
+
+test("ProfileCard renders different prop values", () => {
+  render(<ProfileCard name="Ada Lovelace" role="Programmer" />);
+  expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
+  expect(screen.getByText("Programmer")).toBeInTheDocument();
 });`,
   },
   {
@@ -4460,39 +4555,79 @@ test("renders the role passed to each card", () => {
     title: 'Build a Movie Card',
     slug: 'build-a-movie-card',
     description:
-      'Create one reusable card component and render different movies through props.',
+      'Create a reusable MovieCard component and render a small watchlist from data.',
     difficulty: 'easy' as const,
     requirements: [
-      'Create a MovieCard component',
+      'Export a MovieCard component from its own file',
       'Accept title, year, and rating props',
-      'Render at least two MovieCard instances',
-      'Avoid duplicated movie card markup in App',
+      'Render each movie from the movies array',
+      'Keep App focused on composition rather than card markup',
     ],
-    starterCode: `function MovieCard() {
-  return null;
-}
+    starterCode: reactChallengeProject({
+      activeFile: '/components/MovieCard.tsx',
+      visibleFiles: ['/App.tsx', '/components/MovieCard.tsx', '/data/movies.ts', '/styles.css'],
+      files: {
+        '/App.tsx': {
+          readOnly: true,
+          code: `import { MovieCard } from "./components/MovieCard";
+import { movies } from "./data/movies";
 
 export default function App() {
   return (
     <main>
-      <h1>Movie night</h1>
+      <h1>Watchlist</h1>
+      {movies.map((movie) => (
+        <MovieCard key={movie.id} title={movie.title} year={movie.year} rating={movie.rating} />
+      ))}
     </main>
   );
 }`,
+        },
+        '/components/MovieCard.tsx': {
+          code: `type MovieCardProps = {
+  title: string;
+  year: number;
+  rating: string;
+};
+
+export function MovieCard(props: MovieCardProps) {
+  // Render the movie title, year, and rating.
+  return null;
+}
+`,
+        },
+        '/data/movies.ts': {
+          readOnly: true,
+          code: `export const movies = [
+  { id: "arrival", title: "Arrival", year: 2016, rating: "PG-13" },
+  { id: "spider-verse", title: "Spider-Man: Into the Spider-Verse", year: 2018, rating: "PG" },
+];
+`,
+        },
+        '/styles.css': {
+          code: `body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #f8fafc; color: #172033; }
+main { max-width: 520px; margin: 0 auto; padding: 32px; }
+article { margin: 12px 0; padding: 16px; border: 1px solid #dbe2ea; border-radius: 10px; background: white; }
+`,
+        },
+      },
+    }),
     testCode: `import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import App from "./App";
+import { MovieCard } from "./components/MovieCard";
 
-test("renders multiple movies from the reusable card", () => {
+test("renders the seeded watchlist", () => {
   render(<App />);
   expect(screen.getByText("Arrival")).toBeInTheDocument();
   expect(screen.getByText("Spider-Man: Into the Spider-Verse")).toBeInTheDocument();
 });
 
-test("renders year and rating details", () => {
-  render(<App />);
-  expect(screen.getByText(/2016/)).toBeInTheDocument();
-  expect(screen.getByText(/PG/)).toBeInTheDocument();
+test("MovieCard renders different props", () => {
+  render(<MovieCard title="Wall-E" year={2008} rating="G" />);
+  expect(screen.getByText("Wall-E")).toBeInTheDocument();
+  expect(screen.getByText(/2008/)).toBeInTheDocument();
+  expect(screen.getByText(/G/)).toBeInTheDocument();
 });`,
   },
   {
@@ -4500,39 +4635,78 @@ test("renders year and rating details", () => {
     title: 'Render Task States',
     slug: 'render-task-states',
     description:
-      'Render a task list with stable keys, filters, and an empty state.',
+      'Render a list of tasks with completed and active states from structured data.',
     difficulty: 'easy' as const,
     requirements: [
-      'Render tasks with array.map',
-      'Use each task id as the key',
-      'Show a Done badge for completed tasks',
-      'Show No tasks found when the visible list is empty',
+      'Render every task from the tasks array',
+      'Show completed tasks as Done',
+      'Show active tasks as Active',
+      'Use task IDs as keys',
     ],
-    starterCode: `const tasks = [
-  { id: "t1", title: "Read props lesson", done: true },
-  { id: "t2", title: "Build task list", done: false },
-];
+    starterCode: reactChallengeProject({
+      activeFile: '/components/TaskList.tsx',
+      visibleFiles: ['/App.tsx', '/components/TaskList.tsx', '/data/tasks.ts', '/styles.css'],
+      files: {
+        '/App.tsx': {
+          readOnly: true,
+          code: `import { TaskList } from "./components/TaskList";
+import { tasks } from "./data/tasks";
 
 export default function App() {
   return (
     <main>
-      <h1>Tasks</h1>
+      <h1>Today</h1>
+      <TaskList tasks={tasks} />
     </main>
   );
 }`,
+        },
+        '/components/TaskList.tsx': {
+          code: `type Task = {
+  id: string;
+  title: string;
+  completed: boolean;
+};
+
+export function TaskList({ tasks }: { tasks: Task[] }) {
+  // Render each task and show Done or Active based on completed.
+  return null;
+}
+`,
+        },
+        '/data/tasks.ts': {
+          readOnly: true,
+          code: `export const tasks = [
+  { id: "read", title: "Read lesson", completed: true },
+  { id: "build", title: "Build component", completed: false },
+  { id: "review", title: "Review tests", completed: false },
+];
+`,
+        },
+        '/styles.css': {
+          code: `body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #f8fafc; color: #172033; }
+main { max-width: 520px; margin: 0 auto; padding: 32px; }
+article { margin: 12px 0; padding: 16px; border: 1px solid #dbe2ea; border-radius: 10px; background: white; }
+`,
+        },
+      },
+    }),
     testCode: `import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import App from "./App";
+import { TaskList } from "./components/TaskList";
 
-test("renders task titles", () => {
+test("renders all task titles", () => {
   render(<App />);
-  expect(screen.getByText("Read props lesson")).toBeInTheDocument();
-  expect(screen.getByText("Build task list")).toBeInTheDocument();
+  expect(screen.getByText("Read lesson")).toBeInTheDocument();
+  expect(screen.getByText("Build component")).toBeInTheDocument();
+  expect(screen.getByText("Review tests")).toBeInTheDocument();
 });
 
-test("renders a done badge", () => {
-  render(<App />);
+test("renders completed and active labels", () => {
+  render(<TaskList tasks={[{ id: "a", title: "Ship it", completed: true }, { id: "b", title: "Polish it", completed: false }]} />);
   expect(screen.getByText("Done")).toBeInTheDocument();
+  expect(screen.getByText("Active")).toBeInTheDocument();
 });`,
   },
   {

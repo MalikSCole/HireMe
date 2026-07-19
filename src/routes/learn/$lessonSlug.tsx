@@ -25,6 +25,17 @@ type CurriculumLessonContent = {
   aiFeedback?: { prompt: string };
 };
 
+type SnippetMode = "display" | "react-preview" | "react-exercise";
+
+function parseCodeFenceInfo(info: string | undefined): { language: string; mode: SnippetMode } {
+  const [language = "code", ...flags] = (info ?? "").trim().split(/\s+/).filter(Boolean);
+  const modeFlag = flags.find((flag) => ["display", "react-preview", "react-exercise"].includes(flag));
+  return {
+    language,
+    mode: (modeFlag as SnippetMode | undefined) ?? "display",
+  };
+}
+
 function parseCurriculumContent(content: string): CurriculumLessonContent | null {
   try {
     const parsed = JSON.parse(content) as Partial<CurriculumLessonContent>;
@@ -236,12 +247,13 @@ function CurriculumLessonBody({ lessonSlug, content }: { lessonSlug: string; con
 }
 
 function LessonRichText({ body }: { body: string }) {
-  const parts = body.split(/```(\w+)?\n([\s\S]*?)```/g);
+  const parts = body.split(/```([^\n]*)\n([\s\S]*?)```/g);
   return (
     <div className="mt-2 space-y-3">
       {parts.map((part, index) => {
         if (index % 3 === 2) {
-          return <EditableCodeBlock key={`${index}-${part.slice(0, 20)}`} code={part.trim()} language={parts[index - 1] || "code"} />;
+          const snippet = parseCodeFenceInfo(parts[index - 1]);
+          return <EditableCodeBlock key={`${index}-${part.slice(0, 20)}`} code={part.trim()} language={snippet.language} mode={snippet.mode} />;
         }
         if (index % 3 === 1 || part.trim() === "") return null;
         return <p key={`${index}-${part.slice(0, 20)}`} className="leading-7 text-gray-700 whitespace-pre-line">{part.trim()}</p>;
@@ -250,25 +262,31 @@ function LessonRichText({ body }: { body: string }) {
   );
 }
 
-function EditableCodeBlock({ code, language }: { code: string; language: string }) {
+function EditableCodeBlock({ code, language, mode }: { code: string; language: string; mode: SnippetMode }) {
   const [value, setValue] = useState(code);
   const lineCount = Math.max(8, value.split("\n").length + 1);
-  const canPreview = ["tsx", "jsx", "ts", "js"].includes(language.toLowerCase());
+  const isEditable = mode !== "display";
+  const canPreview = mode === "react-preview" || mode === "react-exercise";
+  const modeLabel = mode === "display" ? language : `${language} · ${mode.replace("react-", "")}`;
 
   return (
     <div className="overflow-hidden rounded-lg border border-gray-800 bg-gray-950">
       <div className="flex items-center justify-between border-b border-gray-800 px-3 py-2">
-        <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">{language}</span>
-        <button type="button" onClick={() => setValue(code)} className="rounded border border-gray-700 px-2 py-1 text-xs font-medium text-gray-200 hover:bg-gray-800">Reset</button>
+        <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">{modeLabel}</span>
+        {isEditable && <button type="button" onClick={() => setValue(code)} className="rounded border border-gray-700 px-2 py-1 text-xs font-medium text-gray-200 hover:bg-gray-800">Reset</button>}
       </div>
-      <textarea
-        aria-label={`Editable ${language} code`}
-        spellCheck={false}
-        value={value}
-        onChange={(event) => setValue(event.target.value)}
-        rows={lineCount}
-        className="block w-full resize-y bg-gray-950 p-4 font-mono text-sm leading-6 text-gray-100 outline-none"
-      />
+      {isEditable ? (
+        <textarea
+          aria-label={`Editable ${language} code`}
+          spellCheck={false}
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+          rows={lineCount}
+          className="block w-full resize-y bg-gray-950 p-4 font-mono text-sm leading-6 text-gray-100 outline-none"
+        />
+      ) : (
+        <pre className="overflow-x-auto bg-gray-950 p-4 font-mono text-sm leading-6 text-gray-100"><code>{code}</code></pre>
+      )}
       {canPreview && (
         <div className="border-t border-gray-800 bg-white">
           <Suspense fallback={<div className="p-4 text-sm text-gray-600">Loading preview...</div>}>

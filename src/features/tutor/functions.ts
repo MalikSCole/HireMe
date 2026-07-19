@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { db } from '../../db'
-import { problems } from '../../db/schema'
+import { lessons, problems } from '../../db/schema'
 import { ensureSession } from '../../lib/auth-functions'
 import { requestGroqTutor } from './server'
 
@@ -13,7 +13,9 @@ const messageSchema = z.object({
 })
 
 const requestSchema = z.object({
-  problemSlug: z.string().min(1).max(160),
+  contextType: z.enum(['problem', 'lesson']).default('problem'),
+  contextSlug: z.string().min(1).max(160).optional(),
+  problemSlug: z.string().min(1).max(160).optional(),
   sourceCode: z.string().min(1).max(20_000),
   messages: z.array(messageSchema).min(1).max(8),
 })
@@ -40,17 +42,29 @@ export const askTutor = createServerFn({ method: 'POST' })
   .validator(requestSchema)
   .handler(async ({ data }) => {
     const session = await ensureSession()
-    const problemRows = await db
-      .select({ title: problems.title, description: problems.description })
-      .from(problems)
-      .where(eq(problems.slug, data.problemSlug))
-      .limit(1)
-    if (problemRows.length === 0) throw new Error('Problem not found.')
+    const contextSlug = data.contextSlug ?? data.problemSlug
+    if (!contextSlug) throw new Error('Tutor context not found.')
+
+    const contextRows =
+      data.contextType === 'lesson'
+        ? await db
+            .select({ title: lessons.title, description: lessons.summary })
+            .from(lessons)
+            .where(eq(lessons.slug, contextSlug))
+            .limit(1)
+        : await db
+            .select({ title: problems.title, description: problems.description })
+            .from(problems)
+            .where(eq(problems.slug, contextSlug))
+            .limit(1)
+    if (contextRows.length === 0)
+      throw new Error(data.contextType === 'lesson' ? 'Lesson not found.' : 'Problem not found.')
 
     const remainingRequests = consumeRequest(session.user.id)
     return requestGroqTutor({
-      problemTitle: problemRows[0].title,
-      problemDescription: problemRows[0].description,
+      contextTitle: contextRows[0].title,
+      contextDescription: contextRows[0].description,
+      contextType: data.contextType,
       sourceCode: data.sourceCode,
       messages: data.messages,
       remainingRequests,

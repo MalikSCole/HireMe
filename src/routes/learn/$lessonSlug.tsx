@@ -4,8 +4,9 @@ import { and, eq } from "drizzle-orm";
 import { lazy, Suspense, useState } from "react";
 
 import { db } from "../../db";
+import { AiTutor } from "../../components/ai-tutor";
 import { LessonDiagram } from "../../components/lesson-diagram";
-import { courseModules, courses, lessonProgress, lessonQuestions, lessons, quizAttempts } from "../../db/schema";
+import { courseModules, courses, lessonProgress, lessonQuestions, lessons, quizAttempts, reactChallenges } from "../../db/schema";
 import { completeLesson, submitKnowledgeCheck } from "../../features/lessons/functions";
 import { getSession } from "../../lib/auth-functions";
 
@@ -86,14 +87,20 @@ const getLesson = createServerFn({ method: "GET" })
     const question = questionRows[0]
       ? { ...questionRows[0], options: JSON.parse(questionRows[0].options) as string[] }
       : null;
+    const challengeRows = await db
+      .select({ title: reactChallenges.title, slug: reactChallenges.slug, difficulty: reactChallenges.difficulty })
+      .from(reactChallenges)
+      .where(eq(reactChallenges.lessonId, rows[0].id))
+      .limit(1);
+    const reactChallenge = challengeRows[0] ?? null;
 
     const session = await getSession();
-    if (!session) return { ...rows[0], question, completed: false, signedIn: false, previousAttempt: null };
+    if (!session) return { ...rows[0], question, reactChallenge, completed: false, signedIn: false, previousAttempt: null };
     const progress = await db.select().from(lessonProgress).where(and(eq(lessonProgress.userId, session.user.id), eq(lessonProgress.lessonId, rows[0].id))).limit(1);
     const attempts = question
       ? await db.select({ selectedIndex: quizAttempts.selectedIndex, passed: quizAttempts.passed }).from(quizAttempts).where(and(eq(quizAttempts.userId, session.user.id), eq(quizAttempts.questionId, question.id))).limit(1)
       : [];
-    return { ...rows[0], question, completed: progress.length > 0, signedIn: true, previousAttempt: attempts[0] ?? null };
+    return { ...rows[0], question, reactChallenge, completed: progress.length > 0, signedIn: true, previousAttempt: attempts[0] ?? null };
   });
 
 export const Route = createFileRoute("/learn/$lessonSlug")({
@@ -144,7 +151,7 @@ function LessonPage() {
       <p className="mt-4 text-lg text-gray-600">{lesson.summary}</p>
 
       {curriculumContent ? (
-        <CurriculumLessonBody lessonSlug={lesson.slug} content={curriculumContent} />
+        <CurriculumLessonBody lessonSlug={lesson.slug} content={curriculumContent} isReactCourse={lesson.courseSlug === "react-foundations"} signedIn={lesson.signedIn} />
       ) : (
         <>
           <LessonDiagram lessonSlug={lesson.slug} />
@@ -156,6 +163,15 @@ function LessonPage() {
         <Suspense fallback={<div className="mt-12 rounded-xl border bg-gray-50 p-8 text-center text-gray-600">Loading interactive preview…</div>}>
           <ReactLessonPlayground lessonSlug={lesson.slug} />
         </Suspense>
+      )}
+
+      {lesson.reactChallenge && (
+        <section className="mt-12 rounded-lg border border-violet-200 bg-violet-50 p-6">
+          <p className="text-sm font-semibold uppercase tracking-wider text-violet-700">Practice problem</p>
+          <h2 className="mt-2 text-xl font-semibold">{lesson.reactChallenge.title}</h2>
+          <p className="mt-2 text-sm capitalize text-violet-800">{lesson.reactChallenge.difficulty}</p>
+          <Link to="/learn/react/challenges/$challengeSlug" params={{ challengeSlug: lesson.reactChallenge.slug }} className="mt-5 inline-flex rounded bg-violet-700 px-5 py-3 font-medium text-white">Open React challenge</Link>
+        </section>
       )}
 
       {lesson.question && (
@@ -183,7 +199,7 @@ function LessonPage() {
   );
 }
 
-function CurriculumLessonBody({ lessonSlug, content }: { lessonSlug: string; content: CurriculumLessonContent }) {
+function CurriculumLessonBody({ lessonSlug, content, isReactCourse, signedIn }: { lessonSlug: string; content: CurriculumLessonContent; isReactCourse: boolean; signedIn: boolean }) {
   return (
     <>
       {content.learningObjectives.length > 0 && (
@@ -208,6 +224,9 @@ function CurriculumLessonBody({ lessonSlug, content }: { lessonSlug: string; con
               <section key={section.title}>
                 <h2 className="text-2xl font-semibold">{section.title}</h2>
                 <LessonRichText body={section.body} />
+                {isReactCourse && section.title === "Fix the bug" && (
+                  <AiTutor contextType="lesson" contextSlug={lessonSlug} sourceCode={section.body} signedIn={signedIn} />
+                )}
               </section>
             ))}
           </div>

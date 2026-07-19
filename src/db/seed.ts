@@ -1407,7 +1407,49 @@ const tagCodeFences = (body: string, mode: 'display' | 'react-preview' | 'react-
     },
   )
 
+const fixBugHelp = `When you get stuck, use the built-in AI tutor on this lesson page before asking for the full solution. Good prompt: "Explain what this React error means, identify the broken rule, and give me one hint without solving it."
+
+For maintainers extending the tutor backend, the Groq API reference is here: https://console.groq.com/docs/api-reference`
+
+const professorMentalModel = (body: string) => `${body}
+
+Professor's framing:
+Start by naming the moving parts in plain English before writing code. In React, most bugs come from losing track of ownership: which file owns a value, which component owns state, which prop carries data, and which render path produces the visible UI.
+
+Beginner checkpoint:
+After reading this section, you should be able to explain the idea without React vocabulary first, then map that explanation back to React terms. If you cannot say it simply, slow down and trace one concrete example.`
+
+const professorGuidedExample = (body: string) => `${body}
+
+Guided walkthrough:
+1. Identify the input data or user action.
+2. Identify the component or helper that receives it.
+3. Trace the transformation one line at a time.
+4. Name the JSX or state value that changes.
+5. Check the final UI against the original requirement.
+
+Senior-engineer habit:
+Do not jump straight to code. First draw the flow in your head: data enters, code transforms it, React renders the result. This habit makes larger applications feel much less mysterious.`
+
+const professorPredict = (body: string) => `${body}
+
+How to use this exercise:
+Pause before reading the answer or running the preview. Write down the exact text, element, state value, or error you expect. Then compare your prediction to the expected output and explain any mismatch in one sentence.`
+
+const professorBuild = (body: string) => `${body}
+
+Build protocol:
+1. Restate the target in your own words.
+2. Write the smallest working version first.
+3. Replace hard-coded values with props, state, or derived values only when the lesson calls for it.
+4. Read the UI from top to bottom and confirm every visible value comes from the intended source.
+5. If something breaks, use the bug message as evidence instead of guessing.
+
+Done means:
+The code works, but also the component has a clear owner for each value and a beginner could follow the render path.`
+
 const reactStructuredContent = ({
+  title = 'React lesson',
   mentalModel,
   guidedExample,
   predict,
@@ -1416,6 +1458,7 @@ const reactStructuredContent = ({
   miniProject,
   review,
 }: {
+  title?: string
   mentalModel: string
   guidedExample: string
   predict: string
@@ -1433,17 +1476,29 @@ const reactStructuredContent = ({
         'Practice the concept through prediction, debugging, and component-building tasks.',
       ],
       sections: [
-        { title: 'Mental model', body: mentalModel },
-        { title: 'Guided example', body: guidedExample },
-        { title: 'Predict the output', body: tagCodeFences(predict, 'display') },
-        { title: 'Fix the bug', body: tagCodeFences(fix, 'react-exercise') },
+        { title: 'Mental model', body: professorMentalModel(mentalModel) },
+        { title: 'Guided example', body: professorGuidedExample(guidedExample) },
+        {
+          title: 'University-style checklist',
+          body: `For ${title}, study in this order:
+
+1. Vocabulary: define each new term in one sentence.
+2. Data flow: point to where information starts and where it is rendered.
+3. Ownership: name which component, hook, route, or cache owns the value.
+4. Failure mode: name the most likely beginner mistake.
+5. Transfer: describe where this idea appears in a real production app.
+
+Use this checklist like office hours notes. If you can answer all five prompts, you are ready for the bug fix and build challenge.`,
+        },
+        { title: 'Predict the output', body: tagCodeFences(professorPredict(predict), 'display') },
+        { title: 'Fix the bug', body: tagCodeFences(`${fix}\n\n${fixBugHelp}`, 'react-exercise') },
       ],
       visualization: {
         kind: 'pattern-diagram',
         prompt:
-          'Use the playground to connect code changes to rendered output and component state.',
+          'Study the diagram as a data-flow map: identify the input, the transformation, the boundary between files or components, and the final UI result before editing the exercise.',
       },
-      workedExample: { title: 'Build challenge', body: tagCodeFences(build, 'react-exercise') },
+      workedExample: { title: 'Build challenge', body: tagCodeFences(professorBuild(build), 'react-exercise') },
       practice: {
         problemSlug: '',
         framing: miniProject,
@@ -1494,21 +1549,25 @@ const reactTopicLesson = ({
     fix?: string
     build?: string
   }
-}) => ({
-  module,
-  title,
-  slug,
-  summary,
-  content: reactStructuredContent({
-    mentalModel: concept,
-    guidedExample: example,
-    predict: examples?.predict ? `${predict}\n\n${examples.predict}` : predict,
-    fix: examples?.fix ? `${fix}\n\n${examples.fix}` : fix,
-    build: examples?.build ? `${build}\n\n${examples.build}` : build,
-    miniProject: project,
-    review: check,
-  }),
-})
+}) => {
+  const lessonExamples = examples ?? reactFallbackExamples(slug, title)
+  return {
+    module,
+    title,
+    slug,
+    summary,
+    content: reactStructuredContent({
+      title,
+      mentalModel: concept,
+      guidedExample: example,
+      predict: lessonExamples?.predict ? `${predict}\n\n${lessonExamples.predict}` : predict,
+      fix: lessonExamples?.fix ? `${fix}\n\n${lessonExamples.fix}` : fix,
+      build: lessonExamples?.build ? `${build}\n\n${lessonExamples.build}` : build,
+      miniProject: project,
+      review: check,
+    }),
+  }
+}
 
 const reactExample = {
   jsxRules: {
@@ -1518,6 +1577,11 @@ function Badge() {
   const count = 3
   return <p className="badge">Unread: {count + 1}</p>
 }
+\`\`\`
+
+Expected output:
+\`\`\`txt
+Unread: 4
 \`\`\``,
     fix: `Fix the JSX errors:
 \`\`\`tsx
@@ -1551,6 +1615,12 @@ function MovieCard({ title, rating }: { title: string; rating: string }) {
 
 <MovieCard title="Arrival" rating="PG-13" />
 <MovieCard title="Kiki's Delivery Service" rating="G" />
+\`\`\`
+
+Expected output:
+\`\`\`txt
+Arrival is rated PG-13
+Kiki's Delivery Service is rated G
 \`\`\``,
     fix: `Fix the prop mismatch:
 \`\`\`tsx
@@ -1583,6 +1653,11 @@ const tasks = [
 ]
 
 tasks.filter(task => !task.done).map(task => task.title)
+\`\`\`
+
+Expected output:
+\`\`\`txt
+["Build list"]
 \`\`\``,
     fix: `Fix the unstable keys:
 \`\`\`tsx
@@ -1609,6 +1684,12 @@ function Counter() {
   }
   return <button onClick={addTwo}>{count}</button>
 }
+\`\`\`
+
+Expected output:
+\`\`\`txt
+The button shows 1, not 2.
+Both updates used the same old count value from this render.
 \`\`\``,
     fix: `Fix the stale updates:
 \`\`\`tsx
@@ -1631,6 +1712,12 @@ function Counter() {
 setTasks(tasks.map(task =>
   task.id === selectedId ? { ...task, done: !task.done } : task
 ))
+\`\`\`
+
+Expected output:
+\`\`\`txt
+Only the task whose id equals selectedId changes.
+Every other task object is returned unchanged.
 \`\`\``,
     fix: `Fix the mutation:
 \`\`\`tsx
@@ -1651,6 +1738,11 @@ function removeTask(id: string) {
 \`\`\`tsx
 const error = name.trim() === "" ? "Name is required" : ""
 return <>{error && <p>{error}</p>}</>
+\`\`\`
+
+Expected output:
+\`\`\`txt
+Name is required
 \`\`\``,
     fix: `Fix the refreshing form:
 \`\`\`tsx
@@ -1677,6 +1769,12 @@ function Cart() {
   const [quantity, setQuantity] = useState(1)
   return <QuantityControls value={quantity} onChange={setQuantity} />
 }
+\`\`\`
+
+Expected output:
+\`\`\`txt
+QuantityControls calls the parent update function.
+Cart owns the changed state, so Cart rerenders and passes the new quantity back down.
 \`\`\``,
     fix: `Fix the child-owned duplicate state:
 \`\`\`tsx
@@ -1700,6 +1798,13 @@ useEffect(() => {
   console.log("connect", roomId)
   return () => console.log("disconnect", roomId)
 }, [roomId])
+\`\`\`
+
+Expected output:
+\`\`\`txt
+On first render: connect current roomId.
+When roomId changes: disconnect old roomId, then connect new roomId.
+When the component unmounts: disconnect the last roomId.
 \`\`\``,
     fix: `Fix the leaking interval:
 \`\`\`tsx
@@ -1725,6 +1830,12 @@ useEffect(() => {
 Route:
 \`\`\`tsx
 createFileRoute("/products/$productId")
+\`\`\`
+
+Expected output:
+\`\`\`txt
+productId = "keyboard"
+tab = "reviews"
 \`\`\``,
     fix: `Fix the disappearing filter:
 \`\`\`tsx
@@ -1746,6 +1857,12 @@ useQuery({
   queryFn: () => fetchIssues(status),
   staleTime: 30_000,
 })
+\`\`\`
+
+Expected output:
+\`\`\`txt
+The query uses cached data while it is fresh.
+It refetches when the status key changes, when it becomes stale and a refetch trigger happens, or when it is invalidated.
 \`\`\``,
     fix: `Fix the stale list after create:
 \`\`\`tsx
@@ -1770,6 +1887,12 @@ const createIssue = useMutation({
   <Dashboard />
 </ThemeProvider>
 <MarketingPage />
+\`\`\`
+
+Expected output:
+\`\`\`txt
+Dashboard and its descendants can read the theme.
+MarketingPage cannot read that provider value because it is outside ThemeProvider.
 \`\`\``,
     fix: `Fix the overused context:
 \`\`\`tsx
@@ -1792,6 +1915,12 @@ function useTheme() {
 \`\`\`tsx
 function A() { const [on] = useToggle(false) }
 function B() { const [on] = useToggle(false) }
+\`\`\`
+
+Expected output:
+\`\`\`txt
+The states are independent.
+Each call to the custom hook gets its own hook state.
 \`\`\``,
     fix: `Fix the hook rule violation:
 \`\`\`tsx
@@ -1812,6 +1941,12 @@ function useDebounce<T>(value: T, delay: number) {
 \`\`\`tsx
 expect(screen.getByRole("status")).toHaveTextContent("Saved")
 expect(component.state("saved")).toBe(true)
+\`\`\`
+
+Expected output:
+\`\`\`txt
+Behavior-focused: screen.getByRole("status") checks visible user-facing output.
+Implementation-focused: component.state("saved") checks internal component details.
 \`\`\``,
     fix: `Fix the brittle test:
 \`\`\`tsx
@@ -1833,6 +1968,11 @@ test("submits a valid profile", async () => {
 <button aria-label="Open settings">
   <SettingsIcon />
 </button>
+\`\`\`
+
+Expected output:
+\`\`\`txt
+Accessible name: Open settings
 \`\`\``,
     fix: `Fix the inaccessible trigger:
 \`\`\`tsx
@@ -1861,6 +2001,11 @@ export default function App() {
   const learner = " maya "
   return <h1>{formatName(learner)}</h1>
 }
+\`\`\`
+
+Expected output:
+\`\`\`txt
+MAYA
 \`\`\``,
     fix: `Fix the import/export and reassignment issues:
 \`\`\`tsx
@@ -1898,6 +2043,11 @@ const movie = {
 
 const { title, meta: { year } } = movie
 return <p>{title} ({year})</p>
+\`\`\`
+
+Expected output:
+\`\`\`txt
+Arrival (2016)
 \`\`\``,
     fix: `Fix the missing field and mutation:
 \`\`\`tsx
@@ -1934,6 +2084,11 @@ const products = [
 products
   .filter(product => product.inStock)
   .map(product => product.name)
+\`\`\`
+
+Expected output:
+\`\`\`txt
+["Keyboard", "Monitor"]
 \`\`\``,
     fix: `Fix the map and reduce bugs:
 \`\`\`tsx
@@ -1965,6 +2120,13 @@ type MovieCardProps = {
 <MovieCard title="Arrival" year={2016} />
 <MovieCard title="Arrival" year="2016" />
 <MovieCard title="Arrival" />
+\`\`\`
+
+Expected output:
+\`\`\`txt
+Accepted: <MovieCard title="Arrival" year={2016} />
+Rejected: year="2016" because year should be a number.
+Rejected: missing required year.
 \`\`\``,
     fix: `Fix the prop contract:
 \`\`\`tsx
@@ -1997,6 +2159,11 @@ type LearnerBadgeProps = {
 function StatusPanel({ status }: { status: "idle" | "complete" }) {
   return <p>{status === "complete" ? "Ready to review" : "Keep working"}</p>
 }
+\`\`\`
+
+Expected output:
+\`\`\`txt
+Ready to review
 \`\`\``,
     fix: `Fix the manual DOM update:
 \`\`\`tsx
@@ -2023,6 +2190,12 @@ function Header() {
 function App() {
   return <main><Header /><p>Maya Chen</p></main>
 }
+\`\`\`
+
+Expected output:
+\`\`\`txt
+Portfolio
+Maya Chen
 \`\`\``,
     fix: `Fix the component mistakes:
 \`\`\`tsx
@@ -2052,6 +2225,12 @@ function App() {
 function PortfolioPage() {
   return <><Hero /><SkillList /></>
 }
+\`\`\`
+
+Expected output:
+\`\`\`txt
+App renders PortfolioPage.
+PortfolioPage renders Hero and SkillList.
 \`\`\``,
     fix: `Fix the overgrown component:
 \`\`\`tsx
@@ -2076,7 +2255,199 @@ src/
     profile.ts
 \`\`\``,
   },
+  performance: {
+    predict: `Predict which components rerender after typing "m":
+\`\`\`tsx
+function App() {
+  const [query, setQuery] = useState("")
+  return (
+    <>
+      <SearchBox value={query} onChange={setQuery} />
+      <Results query={query} />
+      <Sidebar />
+    </>
+  )
+}
+\`\`\`
+
+Expected output:
+\`\`\`txt
+App rerenders because it owns query.
+SearchBox rerenders because its value prop changed.
+Results rerenders because its query prop changed.
+Sidebar also rerenders because it is a child of App, even though its props did not change.
+\`\`\``,
+    fix: `Fix the premature optimization:
+\`\`\`tsx
+const Label = memo(function Label({ text }: { text: string }) {
+  return <span>{text}</span>
+})
+
+function App() {
+  const label = { text: "Ready" }
+  return <Label text={label.text} />
+}
+\`\`\`
+Start by asking what is actually slow. If nothing is measured as slow, remove the extra memoization and keep the component simple.`,
+    build: `Build target:
+\`\`\`tsx
+function ProductSearch({ products }: { products: Product[] }) {
+  // Keep the search query near the search UI.
+  // Derive filteredProducts during render.
+  // Use useMemo only if filtering is measured as expensive.
+}
+\`\`\``,
+  },
+  production: {
+    predict: `Predict which value is unsafe in browser code:
+\`\`\`tsx
+const publicApiUrl = import.meta.env.VITE_API_URL
+const secretToken = "sk_live_super_secret"
+
+export function App() {
+  return <p>{publicApiUrl}</p>
+}
+\`\`\`
+
+Expected output:
+\`\`\`txt
+VITE_API_URL can be public browser configuration.
+secretToken is unsafe because bundled React code is visible to users.
+\`\`\``,
+    fix: `Fix the leaked secret:
+\`\`\`tsx
+async function loadBillingData() {
+  return fetch("https://api.example.com/billing", {
+    headers: { Authorization: "Bearer sk_live_super_secret" },
+  })
+}
+\`\`\`
+Move secret-bearing requests to the server. The browser should call your own API route, not carry private keys.`,
+    build: `Build target:
+\`\`\`tsx
+// Read a public API base URL from VITE_API_URL.
+// Show a friendly error if it is missing.
+// Keep private tokens out of client code.
+\`\`\``,
+  },
+  generic: (title: string) => ({
+    predict: `Predict the visible result:
+\`\`\`tsx
+function LessonNote() {
+  const topic = "${title}"
+  const ready = topic.length > 0
+  return <p>{ready ? topic : "Choose a topic"}</p>
+}
+\`\`\`
+
+Expected output:
+\`\`\`txt
+${title}
+\`\`\``,
+    fix: `Fix the React rendering bug:
+\`\`\`tsx
+function LessonNote() {
+  const note = { title: "${title}" }
+  return <p>{note}</p>
+}
+\`\`\`
+Render a specific field like note.title. React can render strings and elements, but not a plain object as text.`,
+    build: `Build target:
+\`\`\`tsx
+function LessonNote({ title }: { title: string }) {
+  // Render the title.
+  // Render "Untitled lesson" when title is empty.
+}
+\`\`\``,
+  }),
+  capstone: (title: string) => ({
+    predict: `Predict the best owner for each value:
+\`\`\`txt
+Feature: ${title}
+
+Values:
+1. Current route tab
+2. Draft form input
+3. Saved lesson progress from the server
+4. Theme preference
+\`\`\`
+
+Expected output:
+\`\`\`txt
+1. URL/search params or route state
+2. Local form state
+3. TanStack Query/server state
+4. Context or persisted client preference
+\`\`\``,
+    fix: `Fix the capstone state design:
+\`\`\`tsx
+function Dashboard() {
+  const [routeTab, setRouteTab] = useState("lessons")
+  const [profileFromServer, setProfileFromServer] = useState(null)
+  const [theme, setTheme] = useState("light")
+  const [allFormDrafts, setAllFormDrafts] = useState({})
+}
+\`\`\`
+Separate ownership: route tab belongs in the URL, server data belongs in the query cache, theme can live in a provider, and each form should own its own draft.`,
+    build: `Build target:
+\`\`\`txt
+Plan the capstone before coding:
+Routes -> Components -> State owners -> Server data -> Forms -> Tests -> Accessibility review
+\`\`\``,
+  }),
 } as const
+
+function reactFallbackExamples(slug: string, title: string) {
+  if (/required-optional|one-component|children|passing-destructuring-props/.test(slug)) {
+    return reactExample.props
+  }
+  if (/rendering-arrays|stable-keys|conditional-rendering|empty-loading/.test(slug)) {
+    return reactExample.mapKeys
+  }
+  if (/usestate|functional-updates/.test(slug)) {
+    return reactExample.stateUpdates
+  }
+  if (/immutable|controlled-inputs/.test(slug)) {
+    return reactExample.immutableState
+  }
+  if (/form|validation|submit|multiple-form|reusable-form/.test(slug)) {
+    return reactExample.form
+  }
+  if (/lifting-state|callback|parent-controlled|sibling|ownership/.test(slug)) {
+    return reactExample.communication
+  }
+  if (/effect|fetching|unnecessary-effects|dependency|cleanup/.test(slug)) {
+    return reactExample.effects
+  }
+  if (/router|route|params|search-parameters|loaders/.test(slug)) {
+    return reactExample.router
+  }
+  if (/query|mutation|cache|optimistic|server-state/.test(slug)) {
+    return reactExample.query
+  }
+  if (/context|provider|shared-state/.test(slug)) {
+    return reactExample.context
+  }
+  if (/hooks|debounce|local-storage/.test(slug)) {
+    return reactExample.hooks
+  }
+  if (/performance|memo|lazy|measure/.test(slug)) {
+    return reactExample.performance
+  }
+  if (/testing|test/.test(slug)) {
+    return reactExample.testing
+  }
+  if (/a11y|accessib|semantic|keyboard|focus|loading-errors|responsive/.test(slug)) {
+    return reactExample.accessibility
+  }
+  if (/production|env|security|deployment/.test(slug)) {
+    return reactExample.production
+  }
+  if (/capstone/.test(slug)) {
+    return reactExample.capstone(title)
+  }
+  return reactExample.generic(title)
+}
 
 const reactIndividualLessonCatalog = [
   reactTopicLesson({
@@ -2086,15 +2457,27 @@ const reactIndividualLessonCatalog = [
     summary:
       'Use let, const, arrow functions, and imports the way React components expect.',
     concept:
-      'React files are modules, and components are functions. const is the default for values that are not reassigned, while event handlers and helpers are ordinary functions passed around as values.',
+      `React files are JavaScript modules. A module is a file with its own private scope: values created in one file are not available in another file unless you export them and then import them.
+
+The core mental model is simple: data goes into functions, functions return values, and React components are functions that return UI. Most values in React code should start as const because the variable binding should not be reassigned. Use let only when a local value truly changes while the function runs.
+
+Exports are the public API of a file. A named export is imported with braces, like import { formatName } from "./format". A default export is imported without braces, like import App from "./App". Mixing those two shapes is one of the most common beginner bugs.`,
     example:
-      'Create a formatName helper, export a small data array, import it into a component file, and call the helper while rendering.',
+      `Create a formatName helper in one file, export learner data from another file, and import both into a component file. Trace the data path in this order:
+
+1. A value is declared.
+2. The file exports that value.
+3. Another file imports the value.
+4. The component calls the helper while rendering.
+5. The returned string appears in JSX.
+
+That path is the same pattern you will use later for data files, reusable components, hooks, route helpers, and API clients.`,
     predict:
-      'Given a helper imported from another module, predict which values are available locally and which names are out of scope.',
+      `Given a helper imported from another module, predict which values are available locally and which names are out of scope. Ask: was this value declared in the current file, passed as a parameter, or imported from another module? If the answer is no, the component cannot use it.`,
     fix:
-      'Fix a helper accidentally called during render setup, a reassigned const, and an import using the wrong exported name.',
+      `Fix a helper imported with the wrong export style, a const that is reassigned, and a value that belongs in a helper return instead of a mutation. Read the error message as a clue about the contract between files: named exports need braces, default exports do not, and const bindings do not change identity.`,
     build:
-      'Build a tiny utilities module with a formatter and a component that imports and uses it.',
+      `Build a tiny utilities module with a formatter and a component that imports and uses it. Your goal is not just to make the text appear; it is to practice separating data, helper logic, and UI into small files with clear public exports.`,
     project:
       'Diagnostic task: prepare component-shaped data without JSX errors.',
     check:
@@ -2108,15 +2491,28 @@ const reactIndividualLessonCatalog = [
     summary:
       'Read object and array data in the same shapes used by props and list rendering.',
     concept:
-      'Most React UI starts as arrays of objects. Destructuring pulls named fields out of those objects so render code can focus on meaning instead of repeated property access.',
+      `Most React UI starts as objects and arrays. An object represents one thing, such as a user, product, movie, or lesson. An array represents a collection of those things.
+
+Destructuring is a readability tool. Instead of writing movie.meta.rating again and again, you pull the fields you need into local names. The important habit is to keep the original data shape in your head: destructuring does not create new data from nowhere; it gives names to pieces that already exist.
+
+React props use the same idea. When a component receives props, it receives one object. A function like MovieRow({ movie }) is destructuring that props object at the function boundary.`,
     example:
-      'Destructure title, rating, and tags from movie objects before rendering a compact watchlist row.',
+      `Destructure title, rating, and tags from movie objects before rendering a compact watchlist row. Start by drawing the shape:
+
+movie
+  title
+  meta
+    year
+    rating
+  tags
+
+Then match each local variable back to that shape. If you destructure a field that does not exist, React will not magically find it; you will render undefined or trigger a later error.`,
     predict:
-      'Given nested destructuring with a renamed field, predict the local variable names and rendered output.',
+      `Given nested destructuring with a renamed field, predict the local variable names and rendered output. Look for two questions: which object level are we reading from, and what local name is created?`,
     fix:
-      'Fix a component that destructures a missing field and another that mutates an object while preparing display data.',
+      `Fix a component that destructures a missing field and another that mutates an object while preparing display data. In React, treat incoming objects as read-only. If you need changed data, create a new object with the updated field instead of editing the original.`,
     build:
-      'Build a small data preview from an array of product objects using destructuring.',
+      `Build a small data preview from an array of product objects using destructuring. The learner should be able to point to each rendered word and say exactly which property it came from.`,
     project:
       'Diagnostic task: destructure component data before passing it into JSX.',
     check:
@@ -2130,15 +2526,26 @@ const reactIndividualLessonCatalog = [
     summary:
       'Use map, filter, and reduce as the bridge between raw data and rendered UI.',
     concept:
-      'React list rendering is array transformation. map creates one rendered item per value, filter chooses which values remain visible, and reduce derives summaries like totals.',
+      `React list rendering is array transformation. You rarely build a list by manually appending DOM nodes. Instead, you transform data into the shape the screen needs.
+
+Use filter when the output is a smaller array of the same kind of item. Use map when each input item becomes a different output item, such as a string, number, or JSX element. Use reduce when many items collapse into one summary value, such as a total price.
+
+The beginner mistake is choosing a method by memory instead of by output shape. Before coding, say the target shape out loud: "I need fewer products," "I need one row per product," or "I need one total number."`,
     example:
-      'Filter products by category, map visible products to rows, and reduce prices into a cart total.',
+      `Filter products by category, map visible products to rows, and reduce prices into a cart total. This mirrors real UI work:
+
+1. Start with raw records.
+2. Keep only the records the user should see.
+3. Convert records into visible UI.
+4. Derive summary text from the same source data.
+
+When state arrives later, this pattern remains the same; only the input values change.`,
     predict:
-      'Given a filter and map chain, predict which items survive and what labels are produced.',
+      `Given a filter and map chain, predict which items survive and what labels are produced. Trace one item at a time. If it fails the filter, it never reaches map.`,
     fix:
-      'Fix a map callback with no return value and a reduce call with the wrong initial value.',
+      `Fix a map callback with no return value and a reduce call with the wrong initial value. Curly braces in an arrow function require an explicit return. Reduce needs a starting value that matches the summary you want to build.`,
     build:
-      'Transform an array into visible rows plus a derived summary.',
+      `Transform an array into visible rows plus a derived summary. The goal is to practice keeping derived values in render instead of storing extra copies that can drift out of sync.`,
     project:
       'Diagnostic task: filter a product list and derive a total before any React state appears.',
     check:
@@ -2152,15 +2559,24 @@ const reactIndividualLessonCatalog = [
     summary:
       'Describe component inputs with basic types and interfaces.',
     concept:
-      'TypeScript makes prop contracts explicit. Interfaces describe the object shape a component expects and catch mismatches before the UI runs.',
+      `TypeScript gives names to data contracts. A prop type says, "this component expects this exact shape." That makes components easier to use because the editor can warn you before the browser fails.
+
+Required fields must be provided every time. Optional fields may be missing, so the component must handle both cases. A good TypeScript type is not decoration; it is a small design decision about what the component needs in order to work.
+
+For beginners, the key move is to read TypeScript errors as shape mismatches. If a component expects year: number and you pass year="2016", the problem is not React. The data shape does not match the contract.`,
     example:
-      'Define a Movie type and MovieCardProps interface, then use them to type a reusable component.',
+      `Define a Movie type and MovieCardProps interface, then use them to type a reusable component. Keep data types and component prop types distinct in your mind:
+
+Movie describes the domain data.
+MovieCardProps describes what this specific component needs.
+
+Sometimes they are identical. Often the component only needs part of the domain object.`,
     predict:
-      'Given an interface and a component call, predict whether TypeScript accepts the props.',
+      `Given an interface and a component call, predict whether TypeScript accepts the props. Check required fields first, then field types, then optional fields and defaults.`,
     fix:
-      'Fix a wrong prop type, a missing required prop, and an optional prop used without a fallback.',
+      `Fix a wrong prop type, a missing required prop, and an optional prop used without a fallback. If a value can be undefined, either provide a default or render conditionally.`,
     build:
-      'Type a helper function and a small component prop interface.',
+      `Type a helper function and a small component prop interface. The finished code should make incorrect component usage hard to write and easy to spot.`,
     project:
       'Diagnostic task: type function parameters, return values, and component-shaped data.',
     check:
@@ -2174,15 +2590,21 @@ const reactIndividualLessonCatalog = [
     summary:
       'Understand why React turns state and data into a predictable UI tree.',
     concept:
-      'React helps keep UI synchronized with data. Instead of manually editing DOM nodes, components describe what the UI should look like for the current inputs.',
+      `React solves synchronization. In a manual DOM app, you must remember every place on the page that needs to change when data changes. That becomes fragile because the UI can fall out of sync with the real state.
+
+React asks for a different mental model: describe the UI for the current data, and let React update the DOM. A component is a recipe for UI. When its inputs change, React runs the recipe again and compares the new result with what is already on screen.
+
+The rule of thumb is: do not tell the DOM what to change; tell React what the screen should be.`,
     example:
-      'Compare manually updating a status label with returning JSX from a StatusPanel component.',
+      `Compare manually updating a status label with returning JSX from a StatusPanel component. The manual version says, "find this DOM node and change its text." The React version says, "if status is complete, return this text; otherwise return that text."
+
+The second version is easier to test because the output follows directly from the input. You can read the component and predict the UI without replaying a sequence of DOM operations.`,
     predict:
-      'Given a data value and a component, predict the rendered UI without thinking about DOM mutation steps.',
+      `Given a data value and a component, predict the rendered UI without thinking about DOM mutation steps. Treat the component like a pure function: same input, same described UI.`,
     fix:
-      'Fix code that tries to manually query and update DOM text inside the component body.',
+      `Fix code that tries to manually query and update DOM text inside the component body. Replace "find an element and mutate it" with "return the right JSX for the current props."`,
     build:
-      'Build a static status panel from plain data.',
+      `Build a static status panel from plain data. The important step is to put the condition in JSX so the rendered text is derived from props, not from a separate DOM write.`,
     project:
       'Mini project step: define the static sections of a developer portfolio.',
     check:
@@ -2196,13 +2618,17 @@ const reactIndividualLessonCatalog = [
     summary:
       'Write valid JSX with expressions, attributes, fragments, and readable markup.',
     concept:
-      'JSX looks like HTML but is JavaScript syntax. Expressions go in braces, attributes use React names like className, and one component returns one root expression.',
+      `JSX looks like HTML, but it is JavaScript syntax that describes React elements. That means JavaScript rules still apply: expressions go in braces, strings go in quotes, and returned siblings need one parent expression.
+
+Use className instead of class because JSX is closer to JavaScript than HTML. Close every tag, including images and inputs. Return one root element, or use a fragment when you do not want an extra DOM node.
+
+The most useful JSX question is: "Which parts are literal markup, and which parts are JavaScript expressions?" Braces mark the JavaScript parts.`,
     example:
-      'Render a profile heading with className, a dynamic role expression, and a fragment wrapping sibling elements.',
+      `Render a profile heading with className, a dynamic role expression, and a fragment wrapping sibling elements. Read JSX from the outside in: first identify the returned root, then inspect each expression in braces.`,
     predict:
-      'Given JSX with strings, braces, and nested elements, predict which values render as text.',
+      `Given JSX with strings, braces, and nested elements, predict which values render as text. A quoted value is literal text. A braced value is evaluated as JavaScript first.`,
     fix:
-      'Fix invalid class attributes, unclosed tags, adjacent root elements, and accidental object rendering.',
+      `Fix invalid class attributes, unclosed tags, adjacent root elements, and accidental object rendering. If React says an object is not valid as a child, choose a specific property to render instead of rendering the whole object.`,
     build:
       'Build a static profile section using valid JSX rules.',
     project:
@@ -2218,15 +2644,30 @@ const reactIndividualLessonCatalog = [
     summary:
       'Create components that own one clear piece of the rendered tree.',
     concept:
-      'A component is a capitalized function that returns UI. Clear components have a narrow responsibility and can be composed into larger screens.',
+      `A component is a capitalized function that returns UI. The capital letter matters because JSX treats lowercase tags as built-in HTML elements and capitalized tags as your components.
+
+Think of a component as a named piece of the screen with one responsibility. Avatar renders an image or initials. Bio renders text about a person. SkillList renders skills. ProfileCard composes those pieces into a larger unit.
+
+Good component boundaries make code easier to read because each name explains intent. If App contains every detail, the reader must scan all markup at once. If App renders ProfileCard, ProjectList, and ContactSection, the page structure is visible immediately.`,
     example:
-      'Split a ProfilePage into Avatar, Bio, SkillList, and ContactLinks components.',
+      `Split a ProfilePage into Avatar, Bio, SkillList, and ContactLinks components. Start by circling visual groups on the page. Each group that has a clear purpose can become a component.
+
+Then read the tree from parent to child:
+
+ProfilePage
+  ProfileCard
+    Avatar
+    Bio
+  SkillList
+  ContactLinks
+
+This tree is the mental model React wants you to build. Components are not just files; they are named relationships in the UI.`,
     predict:
-      'Given nested component calls, predict the final component tree and visible text.',
+      `Given nested component calls, predict the final component tree and visible text. Replace each component tag with the JSX returned by that component, then continue until only built-in elements and text remain.`,
     fix:
-      'Fix lowercase component names and components that do too many unrelated jobs.',
+      `Fix lowercase component names and components that do too many unrelated jobs. A lowercase custom tag like <profileCard /> will be treated like an unknown HTML tag. Rename it to ProfileCard and render it as <ProfileCard />.`,
     build:
-      'Build a profile card from three smaller components.',
+      `Build a profile card from three smaller components. The goal is not to create as many components as possible; it is to choose names that make the UI tree easier to understand.`,
     project:
       'Mini project step: split the portfolio into reusable static sections.',
     check:
@@ -4477,6 +4918,455 @@ const reactChallengeProject = ({
 
 const reactChallengeCatalog = [
   {
+    lessonSlug: 'react-js-variables-functions-modules',
+    title: 'Build a Display Name Module',
+    slug: 'build-display-name-module',
+    description:
+      'Create a small data module, export a formatter, and render the formatted learner name from App.',
+    difficulty: 'easy' as const,
+    requirements: [
+      'Export learner data from profile-data.ts',
+      'Export getDisplayName from profile-data.ts',
+      'Import both values into App.tsx',
+      'Render Maya Chen on the page',
+    ],
+    starterCode: reactChallengeProject({
+      activeFile: '/profile-data.ts',
+      visibleFiles: ['/App.tsx', '/profile-data.ts', '/styles.css'],
+      files: {
+        '/App.tsx': {
+          code: `// Import learner and getDisplayName from "./profile-data".
+
+export default function App() {
+  return (
+    <main>
+      <h1>Learner profile</h1>
+      <p>{/* Render the display name here */}</p>
+    </main>
+  );
+}
+`,
+        },
+        '/profile-data.ts': {
+          code: `export const learner = { firstName: "Maya", lastName: "Chen" };
+
+export function getDisplayName(first: string, last: string) {
+  // Return "Maya Chen".
+}
+`,
+        },
+        '/styles.css': {
+          code: `body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #f8fafc; color: #172033; }
+main { max-width: 520px; margin: 0 auto; padding: 32px; }
+p { padding: 16px; border: 1px solid #dbe2ea; border-radius: 8px; background: white; font-weight: 700; }
+`,
+        },
+      },
+    }),
+    testCode: `import { render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import App from "./App";
+import { getDisplayName, learner } from "./profile-data";
+
+test("formats the learner name", () => {
+  expect(getDisplayName("Maya", "Chen")).toBe("Maya Chen");
+});
+
+test("exports learner data", () => {
+  expect(learner.firstName).toBe("Maya");
+  expect(learner.lastName).toBe("Chen");
+});
+
+test("renders the formatted learner name", () => {
+  render(<App />);
+  expect(screen.getByText("Maya Chen")).toBeInTheDocument();
+});`,
+  },
+  {
+    lessonSlug: 'react-js-objects-arrays-destructuring',
+    title: 'Build a Product Preview',
+    slug: 'build-product-preview',
+    description:
+      'Read a product object with destructuring and render a compact summary without mutating the data.',
+    difficulty: 'easy' as const,
+    requirements: [
+      'Destructure name, price, and tags',
+      'Render Keyboard - $129 - 2 tags',
+      'Do not mutate the product object',
+      'Export ProductPreview for direct testing',
+    ],
+    starterCode: reactChallengeProject({
+      activeFile: '/ProductPreview.tsx',
+      visibleFiles: ['/App.tsx', '/ProductPreview.tsx', '/styles.css'],
+      files: {
+        '/App.tsx': {
+          readOnly: true,
+          code: `import { ProductPreview } from "./ProductPreview";
+
+const product = {
+  id: "keyboard",
+  name: "Keyboard",
+  price: 129,
+  tags: ["mechanical", "wireless"],
+};
+
+export default function App() {
+  return <main><h1>Product</h1><ProductPreview product={product} /></main>;
+}
+`,
+        },
+        '/ProductPreview.tsx': {
+          code: `type Product = {
+  id: string;
+  name: string;
+  price: number;
+  tags: string[];
+};
+
+export function ProductPreview({ product }: { product: Product }) {
+  // Destructure name, price, and tags.
+  return null;
+}
+`,
+        },
+        '/styles.css': {
+          code: `body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #f8fafc; color: #172033; }
+main { max-width: 520px; margin: 0 auto; padding: 32px; }
+article { padding: 16px; border: 1px solid #dbe2ea; border-radius: 8px; background: white; }
+`,
+        },
+      },
+    }),
+    testCode: `import { render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import App from "./App";
+import { ProductPreview } from "./ProductPreview";
+
+test("renders the seeded product summary", () => {
+  render(<App />);
+  expect(screen.getByText("Keyboard - $129 - 2 tags")).toBeInTheDocument();
+});
+
+test("renders different product data from props", () => {
+  render(<ProductPreview product={{ id: "mouse", name: "Mouse", price: 49, tags: ["small"] }} />);
+  expect(screen.getByText("Mouse - $49 - 1 tags")).toBeInTheDocument();
+});`,
+  },
+  {
+    lessonSlug: 'react-js-map-filter-reduce',
+    title: 'Build a Product List Summary',
+    slug: 'build-product-list-summary',
+    description:
+      'Use filter, map, and reduce to render in-stock products and derive their total price.',
+    difficulty: 'easy' as const,
+    requirements: [
+      'Filter out products that are not in stock',
+      'Render one list item per visible product',
+      'Use product IDs as keys',
+      'Render Total: $428 for visible products',
+    ],
+    starterCode: reactChallengeProject({
+      activeFile: '/ProductList.tsx',
+      visibleFiles: ['/App.tsx', '/ProductList.tsx', '/styles.css'],
+      files: {
+        '/App.tsx': {
+          readOnly: true,
+          code: `import { ProductList } from "./ProductList";
+
+const products = [
+  { id: "keyboard", name: "Keyboard", price: 129, inStock: true },
+  { id: "mouse", name: "Mouse", price: 49, inStock: false },
+  { id: "monitor", name: "Monitor", price: 299, inStock: true },
+];
+
+export default function App() {
+  return <main><h1>Store</h1><ProductList products={products} /></main>;
+}
+`,
+        },
+        '/ProductList.tsx': {
+          code: `type Product = {
+  id: string;
+  name: string;
+  price: number;
+  inStock: boolean;
+};
+
+export function ProductList({ products }: { products: Product[] }) {
+  // Use filter, map, and reduce.
+  return null;
+}
+`,
+        },
+        '/styles.css': {
+          code: `body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #f8fafc; color: #172033; }
+main { max-width: 520px; margin: 0 auto; padding: 32px; }
+li, p { margin: 10px 0; padding: 12px; border: 1px solid #dbe2ea; border-radius: 8px; background: white; }
+`,
+        },
+      },
+    }),
+    testCode: `import { render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import App from "./App";
+
+test("renders only in-stock products", () => {
+  render(<App />);
+  expect(screen.getByText("Keyboard")).toBeInTheDocument();
+  expect(screen.getByText("Monitor")).toBeInTheDocument();
+  expect(screen.queryByText("Mouse")).not.toBeInTheDocument();
+});
+
+test("renders the derived total", () => {
+  render(<App />);
+  expect(screen.getByText("Total: $428")).toBeInTheDocument();
+});`,
+  },
+  {
+    lessonSlug: 'react-typescript-props-data-shapes',
+    title: 'Type a Learner Badge',
+    slug: 'type-learner-badge',
+    description:
+      'Define TypeScript data shapes for a learner and render a typed component from props.',
+    difficulty: 'easy' as const,
+    requirements: [
+      'Define a Learner type',
+      'Define LearnerBadgeProps',
+      'Render the learner name',
+      'Render 4 lessons complete',
+    ],
+    starterCode: reactChallengeProject({
+      activeFile: '/LearnerBadge.tsx',
+      visibleFiles: ['/App.tsx', '/LearnerBadge.tsx', '/styles.css'],
+      files: {
+        '/App.tsx': {
+          readOnly: true,
+          code: `import { LearnerBadge } from "./LearnerBadge";
+
+const learner = { id: "maya", name: "Maya", completedLessons: 4 };
+
+export default function App() {
+  return <main><h1>Progress</h1><LearnerBadge learner={learner} /></main>;
+}
+`,
+        },
+        '/LearnerBadge.tsx': {
+          code: `// Define the Learner and LearnerBadgeProps types.
+
+export function LearnerBadge(props: unknown) {
+  return null;
+}
+`,
+        },
+        '/styles.css': {
+          code: `body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #f8fafc; color: #172033; }
+main { max-width: 520px; margin: 0 auto; padding: 32px; }
+article { padding: 16px; border: 1px solid #dbe2ea; border-radius: 8px; background: white; }
+`,
+        },
+      },
+    }),
+    testCode: `import { render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import App from "./App";
+import { LearnerBadge } from "./LearnerBadge";
+
+test("renders learner progress from App", () => {
+  render(<App />);
+  expect(screen.getByText("Maya")).toBeInTheDocument();
+  expect(screen.getByText("4 lessons complete")).toBeInTheDocument();
+});
+
+test("renders a different learner from props", () => {
+  render(<LearnerBadge learner={{ id: "theo", name: "Theo", completedLessons: 2 }} />);
+  expect(screen.getByText("Theo")).toBeInTheDocument();
+  expect(screen.getByText("2 lessons complete")).toBeInTheDocument();
+});`,
+  },
+  {
+    lessonSlug: 'react-what-react-solves',
+    title: 'Build a Declarative Status Panel',
+    slug: 'build-declarative-status-panel',
+    description:
+      'Render status text from props instead of querying and mutating the DOM.',
+    difficulty: 'easy' as const,
+    requirements: [
+      'Export StatusPanel',
+      'Accept completed and total number props',
+      'Render 3/5 lessons complete when incomplete',
+      'Render Course complete when completed equals total',
+    ],
+    starterCode: reactChallengeProject({
+      activeFile: '/StatusPanel.tsx',
+      visibleFiles: ['/App.tsx', '/StatusPanel.tsx', '/styles.css'],
+      files: {
+        '/App.tsx': {
+          readOnly: true,
+          code: `import { StatusPanel } from "./StatusPanel";
+
+export default function App() {
+  return <main><h1>Course status</h1><StatusPanel completed={3} total={5} /></main>;
+}
+`,
+        },
+        '/StatusPanel.tsx': {
+          code: `export function StatusPanel({
+  completed,
+  total,
+}: {
+  completed: number;
+  total: number;
+}) {
+  // Return JSX based on the props. Do not query the DOM.
+  return null;
+}
+`,
+        },
+        '/styles.css': {
+          code: `body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #f8fafc; color: #172033; }
+main { max-width: 520px; margin: 0 auto; padding: 32px; }
+p { padding: 16px; border: 1px solid #dbe2ea; border-radius: 8px; background: white; }
+`,
+        },
+      },
+    }),
+    testCode: `import { render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import App from "./App";
+import { StatusPanel } from "./StatusPanel";
+
+test("renders incomplete progress from props", () => {
+  render(<App />);
+  expect(screen.getByText("3/5 lessons complete")).toBeInTheDocument();
+});
+
+test("renders complete state from props", () => {
+  render(<StatusPanel completed={5} total={5} />);
+  expect(screen.getByText("Course complete")).toBeInTheDocument();
+});`,
+  },
+  {
+    lessonSlug: 'react-jsx-rules-expressions',
+    title: 'Fix a JSX Profile Summary',
+    slug: 'fix-jsx-profile-summary',
+    description:
+      'Repair JSX attributes, sibling roots, self-closing tags, and expression rendering.',
+    difficulty: 'easy' as const,
+    requirements: [
+      'Use className instead of class',
+      'Return one root element',
+      'Self-close the image',
+      'Render the learner role text',
+    ],
+    starterCode: reactChallengeProject({
+      activeFile: '/ProfileSummary.tsx',
+      visibleFiles: ['/App.tsx', '/ProfileSummary.tsx', '/styles.css'],
+      files: {
+        '/App.tsx': {
+          readOnly: true,
+          code: `import { ProfileSummary } from "./ProfileSummary";
+
+export default function App() {
+  return <main><ProfileSummary /></main>;
+}
+`,
+        },
+        '/ProfileSummary.tsx': {
+          code: `export function ProfileSummary() {
+  const learner = { name: "Maya", role: "Frontend Developer", lessons: 12 };
+  return (
+    <section class="card">
+      <h1>{learner.name}</h1>
+      <img alt="Avatar">
+      <p>{learner}</p>
+    </section>
+    <footer>Online</footer>
+  );
+}
+`,
+        },
+        '/styles.css': {
+          code: `body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #f8fafc; color: #172033; }
+main { max-width: 520px; margin: 0 auto; padding: 32px; }
+.card { padding: 16px; border: 1px solid #dbe2ea; border-radius: 8px; background: white; }
+`,
+        },
+      },
+    }),
+    testCode: `import { render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import App from "./App";
+
+test("renders profile text with valid JSX", () => {
+  render(<App />);
+  expect(screen.getByText("Maya")).toBeInTheDocument();
+  expect(screen.getByText("Frontend Developer")).toBeInTheDocument();
+  expect(screen.getByText("12 lessons complete")).toBeInTheDocument();
+  expect(screen.getByText("Online")).toBeInTheDocument();
+});`,
+  },
+  {
+    lessonSlug: 'react-components-as-ui-functions',
+    title: 'Compose a Profile Card',
+    slug: 'compose-profile-card',
+    description:
+      'Create small capitalized components and compose them into one readable profile card.',
+    difficulty: 'easy' as const,
+    requirements: [
+      'Create Avatar, UserDetails, and ProfileCard components',
+      'Use capitalized component names',
+      'Render Maya Chen',
+      'Render React learner',
+    ],
+    starterCode: reactChallengeProject({
+      activeFile: '/ProfileCard.tsx',
+      visibleFiles: ['/App.tsx', '/ProfileCard.tsx', '/styles.css'],
+      files: {
+        '/App.tsx': {
+          readOnly: true,
+          code: `import { ProfileCard } from "./ProfileCard";
+
+export default function App() {
+  return <main><h1>Team profile</h1><ProfileCard /></main>;
+}
+`,
+        },
+        '/ProfileCard.tsx': {
+          code: `function Avatar() {
+  return null;
+}
+
+function UserDetails() {
+  return null;
+}
+
+export function ProfileCard() {
+  // Compose Avatar and UserDetails.
+  return null;
+}
+`,
+        },
+        '/styles.css': {
+          code: `body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #f8fafc; color: #172033; }
+main { max-width: 520px; margin: 0 auto; padding: 32px; }
+article { display: flex; gap: 12px; align-items: center; padding: 16px; border: 1px solid #dbe2ea; border-radius: 8px; background: white; }
+.avatar { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 999px; background: #2563eb; color: white; font-weight: 800; }
+`,
+        },
+      },
+    }),
+    testCode: `import { render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import App from "./App";
+
+test("renders the composed profile card", () => {
+  render(<App />);
+  expect(screen.getByText("M")).toBeInTheDocument();
+  expect(screen.getByText("Maya Chen")).toBeInTheDocument();
+  expect(screen.getByText("React learner")).toBeInTheDocument();
+});`,
+  },
+  {
     lessonSlug: 'react-components-and-props',
     title: 'Build a Profile Card',
     slug: 'build-a-profile-card',
@@ -5028,6 +5918,757 @@ test("opens and closes an accessible dialog", () => {
   expect(screen.getByRole("dialog", { name: "Preferences" })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Close" }));
   expect(screen.queryByRole("dialog", { name: "Preferences" })).not.toBeInTheDocument();
+});`,
+  },
+  {
+    lessonSlug: 'react-composition-project-structure',
+    title: 'Refactor a Portfolio Page',
+    slug: 'refactor-portfolio-page',
+    description:
+      'Split one large page into small components that make the UI tree readable.',
+    difficulty: 'easy' as const,
+    requirements: [
+      'Create Hero, SkillList, and ProjectList components',
+      'Keep App focused on composition',
+      'Render the learner name',
+      'Render every skill and project from data',
+    ],
+    starterCode: reactChallengeProject({
+      activeFile: '/App.tsx',
+      visibleFiles: ['/App.tsx', '/styles.css'],
+      files: {
+        '/App.tsx': {
+          code: `const profile = {
+  name: "Maya Chen",
+  headline: "Frontend learner",
+  skills: ["React", "TypeScript", "Testing"],
+  projects: ["Portfolio", "Habit Tracker"],
+};
+
+// Create Hero, SkillList, and ProjectList components.
+
+export default function App() {
+  return (
+    <main>
+      <h1>{profile.name}</h1>
+      <p>{profile.headline}</p>
+      <h2>Skills</h2>
+      <p>{profile.skills.join(", ")}</p>
+      <h2>Projects</h2>
+      <p>{profile.projects.join(", ")}</p>
+    </main>
+  );
+}
+`,
+        },
+        '/styles.css': {
+          code: `body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #f8fafc; color: #172033; }
+main { max-width: 560px; margin: 0 auto; padding: 32px; }
+section { margin: 16px 0; padding: 16px; border: 1px solid #dbe2ea; border-radius: 8px; background: white; }
+`,
+        },
+      },
+    }),
+    testCode: `import { render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import App from "./App";
+
+test("renders the composed portfolio sections", () => {
+  render(<App />);
+  expect(screen.getByRole("heading", { name: "Maya Chen" })).toBeInTheDocument();
+  expect(screen.getByText("Frontend learner")).toBeInTheDocument();
+  expect(screen.getByText("React")).toBeInTheDocument();
+  expect(screen.getByText("TypeScript")).toBeInTheDocument();
+  expect(screen.getByText("Habit Tracker")).toBeInTheDocument();
+});`,
+  },
+  {
+    lessonSlug: 'react-required-optional-props',
+    title: 'Build an Optional Variant Button',
+    slug: 'build-optional-variant-button',
+    description:
+      'Design a prop contract with required content and optional visual state.',
+    difficulty: 'easy' as const,
+    requirements: [
+      'Export Button from Button.tsx',
+      'Require children',
+      'Default variant to secondary',
+      'Support disabled buttons',
+    ],
+    starterCode: reactChallengeProject({
+      activeFile: '/Button.tsx',
+      visibleFiles: ['/App.tsx', '/Button.tsx', '/styles.css'],
+      files: {
+        '/App.tsx': {
+          readOnly: true,
+          code: `import { Button } from "./Button";
+
+export default function App() {
+  return (
+    <main>
+      <h1>Actions</h1>
+      <Button variant="primary">Save</Button>
+      <Button>Cancel</Button>
+      <Button disabled>Delete</Button>
+    </main>
+  );
+}
+`,
+        },
+        '/Button.tsx': {
+          code: `import type { ReactNode } from "react";
+
+type ButtonProps = {
+  children: ReactNode;
+  variant?: "primary" | "secondary";
+  disabled?: boolean;
+};
+
+export function Button(props: ButtonProps) {
+  // Default variant to "secondary" and render a real button.
+  return null;
+}
+`,
+        },
+        '/styles.css': {
+          code: `body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #f8fafc; color: #172033; }
+main { max-width: 520px; margin: 0 auto; padding: 32px; }
+button { margin: 8px; padding: 10px 14px; border-radius: 8px; border: 1px solid #94a3b8; }
+`,
+        },
+      },
+    }),
+    testCode: `import { render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import App from "./App";
+import { Button } from "./Button";
+
+test("renders required children and optional variants", () => {
+  render(<App />);
+  expect(screen.getByRole("button", { name: "Save" })).toHaveAttribute("data-variant", "primary");
+  expect(screen.getByRole("button", { name: "Cancel" })).toHaveAttribute("data-variant", "secondary");
+});
+
+test("supports disabled buttons", () => {
+  render(<Button disabled>Archive</Button>);
+  expect(screen.getByRole("button", { name: "Archive" })).toBeDisabled();
+});`,
+  },
+  {
+    lessonSlug: 'react-children-prop-layouts',
+    title: 'Build a Card Wrapper',
+    slug: 'build-card-wrapper-children',
+    description:
+      'Use children so a wrapper owns layout while the parent owns content.',
+    difficulty: 'easy' as const,
+    requirements: [
+      'Export Card',
+      'Render children inside the card',
+      'Accept an optional title',
+      'Do not hard-code the card body',
+    ],
+    starterCode: reactChallengeProject({
+      activeFile: '/Card.tsx',
+      visibleFiles: ['/App.tsx', '/Card.tsx', '/styles.css'],
+      files: {
+        '/App.tsx': {
+          readOnly: true,
+          code: `import { Card } from "./Card";
+
+export default function App() {
+  return (
+    <main>
+      <Card title="Today">
+        <p>Build one reusable wrapper.</p>
+      </Card>
+      <Card>
+        <button>Continue</button>
+      </Card>
+    </main>
+  );
+}
+`,
+        },
+        '/Card.tsx': {
+          code: `import type { ReactNode } from "react";
+
+type CardProps = {
+  title?: string;
+  children: ReactNode;
+};
+
+export function Card({ title, children }: CardProps) {
+  // Render title only when provided, then render children.
+  return null;
+}
+`,
+        },
+        '/styles.css': {
+          code: `body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #f8fafc; color: #172033; }
+main { max-width: 520px; margin: 0 auto; padding: 32px; }
+article { margin: 12px 0; padding: 16px; border: 1px solid #dbe2ea; border-radius: 8px; background: white; }
+`,
+        },
+      },
+    }),
+    testCode: `import { render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import App from "./App";
+import { Card } from "./Card";
+
+test("renders title and children from App", () => {
+  render(<App />);
+  expect(screen.getByText("Today")).toBeInTheDocument();
+  expect(screen.getByText("Build one reusable wrapper.")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Continue" })).toBeInTheDocument();
+});
+
+test("renders arbitrary children", () => {
+  render(<Card><span>Nested content</span></Card>);
+  expect(screen.getByText("Nested content")).toBeInTheDocument();
+});`,
+  },
+  {
+    lessonSlug: 'react-empty-loading-error-states',
+    title: 'Render Empty Loading and Error States',
+    slug: 'render-empty-loading-error-states',
+    description:
+      'Build a list component that handles every common collection state.',
+    difficulty: 'easy' as const,
+    requirements: [
+      'Show Loading lessons while loading',
+      'Show the error message when error is provided',
+      'Show No lessons found for an empty list',
+      'Render lesson titles when data exists',
+    ],
+    starterCode: reactChallengeProject({
+      activeFile: '/LessonList.tsx',
+      visibleFiles: ['/App.tsx', '/LessonList.tsx', '/styles.css'],
+      files: {
+        '/App.tsx': {
+          readOnly: true,
+          code: `import { LessonList } from "./LessonList";
+
+const lessons = [
+  { id: "props", title: "Props" },
+  { id: "state", title: "State" },
+];
+
+export default function App() {
+  return <main><h1>Lessons</h1><LessonList lessons={lessons} /></main>;
+}
+`,
+        },
+        '/LessonList.tsx': {
+          code: `type Lesson = { id: string; title: string };
+
+type LessonListProps = {
+  lessons: Lesson[];
+  loading?: boolean;
+  error?: string;
+};
+
+export function LessonList({ lessons, loading = false, error }: LessonListProps) {
+  // Render loading, error, empty, or the list.
+  return null;
+}
+`,
+        },
+        '/styles.css': {
+          code: `body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #f8fafc; color: #172033; }
+main { max-width: 520px; margin: 0 auto; padding: 32px; }
+li, p { padding: 12px; border: 1px solid #dbe2ea; border-radius: 8px; background: white; }
+`,
+        },
+      },
+    }),
+    testCode: `import { render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import App from "./App";
+import { LessonList } from "./LessonList";
+
+test("renders lessons", () => {
+  render(<App />);
+  expect(screen.getByText("Props")).toBeInTheDocument();
+  expect(screen.getByText("State")).toBeInTheDocument();
+});
+
+test("renders loading, error, and empty states", () => {
+  const { rerender } = render(<LessonList lessons={[]} loading />);
+  expect(screen.getByText("Loading lessons")).toBeInTheDocument();
+  rerender(<LessonList lessons={[]} error="Could not load lessons" />);
+  expect(screen.getByText("Could not load lessons")).toBeInTheDocument();
+  rerender(<LessonList lessons={[]} />);
+  expect(screen.getByText("No lessons found")).toBeInTheDocument();
+});`,
+  },
+  {
+    lessonSlug: 'react-functional-updates-batching',
+    title: 'Queue Counter Updates Correctly',
+    slug: 'queue-counter-updates-correctly',
+    description:
+      'Use functional state updates when the next value depends on the previous value.',
+    difficulty: 'easy' as const,
+    requirements: [
+      'Render the current count',
+      'Increment once with Increment',
+      'Increment twice with Add two',
+      'Reset to zero',
+    ],
+    starterCode: `import { useState } from "react";
+
+export default function App() {
+  const [count, setCount] = useState(0);
+
+  function addTwo() {
+    setCount(count + 1);
+    setCount(count + 1);
+  }
+
+  return (
+    <main>
+      <h1>Counter</h1>
+      <p>{count}</p>
+      <button onClick={() => setCount(count + 1)}>Increment</button>
+      <button onClick={addTwo}>Add two</button>
+      <button>Reset</button>
+    </main>
+  );
+}`,
+    testCode: `import { fireEvent, render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import App from "./App";
+
+test("adds two using queued functional updates", () => {
+  render(<App />);
+  fireEvent.click(screen.getByRole("button", { name: "Add two" }));
+  expect(screen.getByText("2")).toBeInTheDocument();
+});
+
+test("increments and resets", () => {
+  render(<App />);
+  fireEvent.click(screen.getByRole("button", { name: "Increment" }));
+  expect(screen.getByText("1")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+  expect(screen.getByText("0")).toBeInTheDocument();
+});`,
+  },
+  {
+    lessonSlug: 'react-controlled-inputs-derived-state',
+    title: 'Build a Controlled Search Box',
+    slug: 'build-controlled-search-box',
+    description:
+      'Connect an input value to React state and derive filtered results from that state.',
+    difficulty: 'easy' as const,
+    requirements: [
+      'Control the search input with state',
+      'Filter lessons by the current query',
+      'Render matching lesson titles',
+      'Show No matches when nothing matches',
+    ],
+    starterCode: `import { useState } from "react";
+
+const lessons = ["Props", "State", "Effects", "Testing"];
+
+export default function App() {
+  // Control the query input with state.
+  return (
+    <main>
+      <h1>Search lessons</h1>
+      <label>
+        Search
+        <input />
+      </label>
+      <ul>
+        {lessons.map((lesson) => <li key={lesson}>{lesson}</li>)}
+      </ul>
+    </main>
+  );
+}`,
+    testCode: `import { fireEvent, render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import App from "./App";
+
+test("filters visible lessons from controlled input", () => {
+  render(<App />);
+  fireEvent.change(screen.getByLabelText("Search"), { target: { value: "st" } });
+  expect(screen.getByText("State")).toBeInTheDocument();
+  expect(screen.getByText("Testing")).toBeInTheDocument();
+  expect(screen.queryByText("Props")).not.toBeInTheDocument();
+});
+
+test("shows an empty state", () => {
+  render(<App />);
+  fireEvent.change(screen.getByLabelText("Search"), { target: { value: "router" } });
+  expect(screen.getByText("No matches")).toBeInTheDocument();
+});`,
+  },
+  {
+    lessonSlug: 'react-parent-controlled-components',
+    title: 'Build a Parent-Controlled Modal',
+    slug: 'build-parent-controlled-modal',
+    description:
+      'Let the parent own whether a child modal is open and pass callbacks down.',
+    difficulty: 'medium' as const,
+    requirements: [
+      'Store modal open state in App',
+      'Pass open and onClose props to Modal',
+      'Open the modal from App',
+      'Close the modal from inside Modal',
+    ],
+    starterCode: reactChallengeProject({
+      activeFile: '/Modal.tsx',
+      visibleFiles: ['/App.tsx', '/Modal.tsx', '/styles.css'],
+      files: {
+        '/App.tsx': {
+          code: `import { useState } from "react";
+import { Modal } from "./Modal";
+
+export default function App() {
+  // Own the open state here.
+  return (
+    <main>
+      <h1>Dashboard</h1>
+      <button>Open help</button>
+      <Modal />
+    </main>
+  );
+}
+`,
+        },
+        '/Modal.tsx': {
+          code: `type ModalProps = {
+  open: boolean;
+  onClose: () => void;
+};
+
+export function Modal(props: ModalProps) {
+  // Return null when closed. Render a dialog when open.
+  return null;
+}
+`,
+        },
+        '/styles.css': {
+          code: `body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #f8fafc; color: #172033; }
+main { max-width: 520px; margin: 0 auto; padding: 32px; }
+section { padding: 16px; border: 1px solid #dbe2ea; border-radius: 8px; background: white; }
+`,
+        },
+      },
+    }),
+    testCode: `import { fireEvent, render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import App from "./App";
+
+test("parent opens and child closes the modal", () => {
+  render(<App />);
+  expect(screen.queryByRole("dialog", { name: "Help" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Open help" }));
+  expect(screen.getByRole("dialog", { name: "Help" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Close help" }));
+  expect(screen.queryByRole("dialog", { name: "Help" })).not.toBeInTheDocument();
+});`,
+  },
+  {
+    lessonSlug: 'tanstack-query-server-state',
+    title: 'Render Server State Lifecycles',
+    slug: 'render-server-state-lifecycles',
+    description:
+      'Practice the rendering contract TanStack Query enforces: loading, error, empty, and success states.',
+    difficulty: 'medium' as const,
+    requirements: [
+      'Export IssueList',
+      'Render loading state',
+      'Render error state',
+      'Render empty state',
+      'Render issue titles when data exists',
+    ],
+    starterCode: reactChallengeProject({
+      activeFile: '/IssueList.tsx',
+      visibleFiles: ['/App.tsx', '/IssueList.tsx', '/styles.css'],
+      files: {
+        '/App.tsx': {
+          readOnly: true,
+          code: `import { IssueList } from "./IssueList";
+
+const issues = [
+  { id: "1", title: "Cache progress" },
+  { id: "2", title: "Handle retries" },
+];
+
+export default function App() {
+  return <main><h1>Issues</h1><IssueList status="success" issues={issues} /></main>;
+}
+`,
+        },
+        '/IssueList.tsx': {
+          code: `type Issue = { id: string; title: string };
+
+type IssueListProps = {
+  status: "loading" | "error" | "success";
+  issues?: Issue[];
+  errorMessage?: string;
+};
+
+export function IssueList({ status, issues = [], errorMessage }: IssueListProps) {
+  // Render loading, error, empty, or success UI.
+  return null;
+}
+`,
+        },
+        '/styles.css': {
+          code: `body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #f8fafc; color: #172033; }
+main { max-width: 520px; margin: 0 auto; padding: 32px; }
+li, p { padding: 12px; border: 1px solid #dbe2ea; border-radius: 8px; background: white; }
+`,
+        },
+      },
+    }),
+    testCode: `import { render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import App from "./App";
+import { IssueList } from "./IssueList";
+
+test("renders successful issue data", () => {
+  render(<App />);
+  expect(screen.getByText("Cache progress")).toBeInTheDocument();
+  expect(screen.getByText("Handle retries")).toBeInTheDocument();
+});
+
+test("renders non-success states", () => {
+  const { rerender } = render(<IssueList status="loading" />);
+  expect(screen.getByText("Loading issues")).toBeInTheDocument();
+  rerender(<IssueList status="error" errorMessage="Network failed" />);
+  expect(screen.getByText("Network failed")).toBeInTheDocument();
+  rerender(<IssueList status="success" issues={[]} />);
+  expect(screen.getByText("No issues yet")).toBeInTheDocument();
+});`,
+  },
+  {
+    lessonSlug: 'react-testing-behavior-not-implementation',
+    title: 'Make a Testable Save Button',
+    slug: 'make-testable-save-button',
+    description:
+      'Build behavior that can be tested through roles, labels, and visible feedback.',
+    difficulty: 'easy' as const,
+    requirements: [
+      'Render a Save button',
+      'Show Unsaved before clicking',
+      'Show Saved after clicking',
+      'Use role status for the feedback message',
+    ],
+    starterCode: `import { useState } from "react";
+
+export default function App() {
+  const [saved, setSaved] = useState(false);
+  return (
+    <main>
+      <h1>Settings</h1>
+      <p>{saved ? "Saved" : "Unsaved"}</p>
+      <button>Save</button>
+    </main>
+  );
+}`,
+    testCode: `import { fireEvent, render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import App from "./App";
+
+test("saves through user-visible behavior", () => {
+  render(<App />);
+  expect(screen.getByRole("status")).toHaveTextContent("Unsaved");
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  expect(screen.getByRole("status")).toHaveTextContent("Saved");
+});`,
+  },
+  {
+    lessonSlug: 'react-performance-render-cycles-state-placement',
+    title: 'Move State Closer to Its Owner',
+    slug: 'move-state-closer-to-owner',
+    description:
+      'Refactor search state so unrelated UI does not need to own fast-changing input.',
+    difficulty: 'medium' as const,
+    requirements: [
+      'Keep search query inside SearchPanel',
+      'Render Sidebar independently',
+      'Filter products from SearchPanel state',
+      'Show No products when the filtered list is empty',
+    ],
+    starterCode: `import { useState } from "react";
+
+const products = ["Keyboard", "Monitor", "Mouse"];
+
+function Sidebar() {
+  return <aside>Course navigation</aside>;
+}
+
+function SearchPanel({ query, setQuery }: { query: string; setQuery: (value: string) => void }) {
+  const visible = products.filter((product) => product.toLowerCase().includes(query.toLowerCase()));
+  return (
+    <section>
+      <label>
+        Search
+        <input value={query} onChange={(event) => setQuery(event.target.value)} />
+      </label>
+      <ul>{visible.map((product) => <li key={product}>{product}</li>)}</ul>
+    </section>
+  );
+}
+
+export default function App() {
+  const [query, setQuery] = useState("");
+  return (
+    <main>
+      <Sidebar />
+      <SearchPanel query={query} setQuery={setQuery} />
+    </main>
+  );
+}`,
+    testCode: `import { fireEvent, render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import App from "./App";
+
+test("filters products inside the search panel", () => {
+  render(<App />);
+  fireEvent.change(screen.getByLabelText("Search"), { target: { value: "mo" } });
+  expect(screen.getByText("Monitor")).toBeInTheDocument();
+  expect(screen.getByText("Mouse")).toBeInTheDocument();
+  expect(screen.queryByText("Keyboard")).not.toBeInTheDocument();
+});
+
+test("shows an empty state", () => {
+  render(<App />);
+  fireEvent.change(screen.getByLabelText("Search"), { target: { value: "zzz" } });
+  expect(screen.getByText("No products")).toBeInTheDocument();
+});`,
+  },
+  {
+    lessonSlug: 'react-production-env-security-deployment',
+    title: 'Separate Public Config from Secrets',
+    slug: 'separate-public-config-from-secrets',
+    description:
+      'Render safe public configuration and avoid putting private tokens in browser code.',
+    difficulty: 'easy' as const,
+    requirements: [
+      'Export getApiBaseUrl',
+      'Read VITE_API_URL when present',
+      'Fall back to /api',
+      'Do not render or export a secret token',
+    ],
+    starterCode: reactChallengeProject({
+      activeFile: '/config.ts',
+      visibleFiles: ['/App.tsx', '/config.ts', '/styles.css'],
+      files: {
+        '/App.tsx': {
+          readOnly: true,
+          code: `import { getApiBaseUrl } from "./config";
+
+export default function App() {
+  return (
+    <main>
+      <h1>Deployment config</h1>
+      <p>API: {getApiBaseUrl()}</p>
+    </main>
+  );
+}
+`,
+        },
+        '/config.ts': {
+          code: `const secretToken = "sk_live_never_ship_this";
+
+export function getApiBaseUrl() {
+  // Return import.meta.env.VITE_API_URL when present.
+  // Otherwise return "/api".
+}
+`,
+        },
+        '/styles.css': {
+          code: `body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #f8fafc; color: #172033; }
+main { max-width: 520px; margin: 0 auto; padding: 32px; }
+p { padding: 12px; border: 1px solid #dbe2ea; border-radius: 8px; background: white; }
+`,
+        },
+      },
+    }),
+    testCode: `import { render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import App from "./App";
+import { getApiBaseUrl } from "./config";
+
+test("falls back to a relative API URL", () => {
+  expect(getApiBaseUrl()).toBe("/api");
+});
+
+test("renders safe public config without a secret token", () => {
+  render(<App />);
+  expect(screen.getByText("API: /api")).toBeInTheDocument();
+  expect(screen.queryByText(/sk_live/)).not.toBeInTheDocument();
+});`,
+  },
+  {
+    lessonSlug: 'react-learning-dashboard-capstone',
+    title: 'Build a Dashboard Milestone Planner',
+    slug: 'build-dashboard-milestone-planner',
+    description:
+      'Combine component composition, lists, derived progress, and accessible status into a capstone planning widget.',
+    difficulty: 'medium' as const,
+    requirements: [
+      'Render every milestone',
+      'Show Done or Next for each milestone',
+      'Render 2/4 milestones complete',
+      'Use role status for the summary',
+    ],
+    starterCode: reactChallengeProject({
+      activeFile: '/MilestonePlanner.tsx',
+      visibleFiles: ['/App.tsx', '/MilestonePlanner.tsx', '/styles.css'],
+      files: {
+        '/App.tsx': {
+          readOnly: true,
+          code: `import { MilestonePlanner } from "./MilestonePlanner";
+
+const milestones = [
+  { id: "routes", title: "Build routes", done: true },
+  { id: "forms", title: "Add profile form", done: true },
+  { id: "server", title: "Connect server data", done: false },
+  { id: "tests", title: "Write behavior tests", done: false },
+];
+
+export default function App() {
+  return <main><h1>Capstone plan</h1><MilestonePlanner milestones={milestones} /></main>;
+}
+`,
+        },
+        '/MilestonePlanner.tsx': {
+          code: `type Milestone = {
+  id: string;
+  title: string;
+  done: boolean;
+};
+
+export function MilestonePlanner({ milestones }: { milestones: Milestone[] }) {
+  // Derive completed count and render all milestones.
+  return null;
+}
+`,
+        },
+        '/styles.css': {
+          code: `body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #f8fafc; color: #172033; }
+main { max-width: 560px; margin: 0 auto; padding: 32px; }
+li, p { padding: 12px; border: 1px solid #dbe2ea; border-radius: 8px; background: white; }
+`,
+        },
+      },
+    }),
+    testCode: `import { render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import App from "./App";
+
+test("renders milestone progress and statuses", () => {
+  render(<App />);
+  expect(screen.getByRole("status")).toHaveTextContent("2/4 milestones complete");
+  expect(screen.getByText("Build routes")).toBeInTheDocument();
+  expect(screen.getByText("Connect server data")).toBeInTheDocument();
+  expect(screen.getAllByText("Done")).toHaveLength(2);
+  expect(screen.getAllByText("Next")).toHaveLength(2);
 });`,
   },
 ] as const

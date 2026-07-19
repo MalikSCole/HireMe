@@ -182,10 +182,13 @@ const blind75PatternDiagrams: Partial<
 export function LessonDiagram({ lessonSlug }: DiagramProps) {
   const patternDiagram =
     blind75PatternDiagrams[lessonSlug] ?? getGeneratedBlind75Diagram(lessonSlug)
+  const generatedReactDiagram = getGeneratedReactDiagram(lessonSlug)
   const diagram = patternDiagram ? (
     <PatternFlowDiagram {...patternDiagram} />
   ) : lessonSlug.startsWith('system-design-') ? (
     <SystemDesignArchitectureDiagram lessonSlug={lessonSlug} />
+  ) : generatedReactDiagram ? (
+    generatedReactDiagram
   ) : (
     {
       'understanding-big-o': <BigODiagram />,
@@ -207,6 +210,13 @@ export function LessonDiagram({ lessonSlug }: DiagramProps) {
       'heaps-and-top-k-selection': <HeapDiagram />,
       'grid-traversal-connected-components': <GridTraversalDiagram />,
       'one-dimensional-dynamic-programming': <DynamicProgrammingDiagram />,
+      'react-js-variables-functions-modules': <ModuleBoundaryDiagram />,
+      'react-js-objects-arrays-destructuring': <ObjectShapeDiagram />,
+      'react-js-map-filter-reduce': <ArrayTransformDiagram />,
+      'react-typescript-props-data-shapes': <TypeContractDiagram />,
+      'react-what-react-solves': <DeclarativeReactDiagram />,
+      'react-jsx-rules-expressions': <JsxExpressionDiagram />,
+      'react-components-as-ui-functions': <ComponentResponsibilityDiagram />,
       'react-readiness-diagnostic': <ArrayScanDiagram />,
       'react-components-and-props': <ComponentTreeDiagram />,
       'react-props-and-reusable-components': <ComponentTreeDiagram />,
@@ -232,6 +242,35 @@ export function LessonDiagram({ lessonSlug }: DiagramProps) {
       {diagram}
     </section>
   )
+}
+
+function getGeneratedReactDiagram(lessonSlug: string) {
+  if (/props|required-optional|one-component|children/.test(lessonSlug))
+    return <PropsContractDiagram />
+  if (/rendering-arrays|stable-keys|conditional-rendering|empty-loading/.test(lessonSlug))
+    return <CollectionStateDiagram />
+  if (/usestate|functional-updates|immutable|controlled-inputs/.test(lessonSlug))
+    return <StateOwnershipDiagram />
+  if (/form|validation|submit|multiple-form|reusable-form/.test(lessonSlug))
+    return <FormFlowDiagram />
+  if (/lifting-state|callback|parent-controlled|sibling|ownership/.test(lessonSlug))
+    return <CommunicationDiagram />
+  if (/effect|fetching|unnecessary-effects|dependency|cleanup/.test(lessonSlug))
+    return <EffectDiagram />
+  if (/router|route|params|search-parameters|loaders/.test(lessonSlug))
+    return <RouteDiagram />
+  if (/query|server-state|mutation|refetching|optimistic/.test(lessonSlug))
+    return <ServerStateDiagram />
+  if (/context/.test(lessonSlug)) return <ContextBoundaryDiagram />
+  if (/hooks|custom-hook|local-storage|debounce/.test(lessonSlug))
+    return <CustomHookDiagram />
+  if (/performance|memo|lazy-loading|measure/.test(lessonSlug))
+    return <PerformanceDiagram />
+  if (/testing/.test(lessonSlug)) return <TestingPyramidDiagram />
+  if (/a11y|accessibility|semantic|keyboard|focus/.test(lessonSlug))
+    return <AccessibilityDiagram />
+  if (/capstone/.test(lessonSlug)) return <CapstoneIntegrationDiagram />
+  return null
 }
 
 function SystemDesignArchitectureDiagram({ lessonSlug }: { lessonSlug: string }) {
@@ -1208,6 +1247,389 @@ function CellRow({
           )}
         </div>
       ))}
+    </div>
+  )
+}
+
+function ModuleBoundaryDiagram() {
+  return (
+    <div>
+      <DiagramHeading
+        title="Modules create clear file boundaries"
+        description="A value must be exported from one file before another file can import and use it."
+      />
+      <div className="mt-6 grid gap-4 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-center">
+        <Node label="profile-data.ts" detail="exports learner + formatter" />
+        <span className="text-center text-2xl text-blue-600">→</span>
+        <Node label="App.tsx" detail="imports and calls helper" />
+        <span className="text-center text-2xl text-blue-600">→</span>
+        <Node label="Screen" detail="renders Maya Chen" />
+      </div>
+      <p className="mt-5 rounded bg-blue-50 p-3 text-sm text-blue-950">
+        Beginner check: if a name is not declared, imported, or passed in, the
+        component cannot see it.
+      </p>
+    </div>
+  )
+}
+
+function ObjectShapeDiagram() {
+  return (
+    <div>
+      <DiagramHeading
+        title="Destructuring follows the object shape"
+        description="Local variables are labels for fields that already exist inside the data."
+      />
+      <div className="mt-6 grid gap-4 md:grid-cols-[1fr_auto_1fr] md:items-center">
+        <div className="rounded-lg border bg-white p-4 font-mono text-sm leading-7">
+          <p>movie</p>
+          <p className="pl-4">title: "Arrival"</p>
+          <p className="pl-4">meta</p>
+          <p className="pl-8">year: 2016</p>
+          <p className="pl-8">rating: "PG-13"</p>
+        </div>
+        <span className="text-center text-2xl text-blue-600">→</span>
+        <div className="rounded-lg border bg-blue-50 p-4 font-mono text-sm leading-7">
+          <p>const {'{ title }'} = movie</p>
+          <p>const {'{ year }'} = movie.meta</p>
+          <p className="mt-2 font-sans text-sm font-semibold text-blue-800">
+            title and year are now local names
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ArrayTransformDiagram() {
+  return (
+    <div>
+      <DiagramHeading
+        title="Choose the array method by output shape"
+        description="Each method answers a different question about the data you want next."
+      />
+      <div className="mt-6 grid gap-3 md:grid-cols-3">
+        <Node label="filter" detail="many items → fewer items" />
+        <Node label="map" detail="each item → one UI row" />
+        <Node label="reduce" detail="many items → one summary" />
+      </div>
+      <div className="mt-5 rounded-lg border bg-white p-4 text-sm">
+        <p className="font-semibold">Product list flow</p>
+        <p className="mt-2 font-mono">
+          products → inStock products → &lt;li&gt; rows → total price
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function TypeContractDiagram() {
+  return (
+    <div>
+      <DiagramHeading
+        title="Types are component contracts"
+        description="A prop type explains what the component needs before it can render correctly."
+      />
+      <div className="mt-6 grid gap-4 md:grid-cols-[1fr_auto_1fr] md:items-center">
+        <Node label="Caller" detail='<MovieCard title year rating />' />
+        <span className="text-center text-2xl text-blue-600">→</span>
+        <Node label="MovieCardProps" detail="title: string · year: number" />
+      </div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="rounded border bg-green-50 p-3 text-sm">
+          <p className="font-semibold text-green-800">Accepted</p>
+          <code>year={2016}</code>
+        </div>
+        <div className="rounded border bg-red-50 p-3 text-sm">
+          <p className="font-semibold text-red-800">Rejected</p>
+          <code>year="2016"</code>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DeclarativeReactDiagram() {
+  return (
+    <div>
+      <DiagramHeading
+        title="React turns data into UI descriptions"
+        description="You describe what the screen should be for current data; React performs the DOM update."
+      />
+      <div className="mt-6 grid gap-4 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-center">
+        <Node label="Props / State" detail="completed=3 total=5" />
+        <span className="text-center text-2xl text-blue-600">→</span>
+        <Node label="Component" detail="returns JSX" />
+        <span className="text-center text-2xl text-blue-600">→</span>
+        <Node label="DOM" detail="3/5 lessons complete" />
+      </div>
+      <p className="mt-5 rounded bg-blue-50 p-3 text-sm text-blue-950">
+        Senior-engineer habit: avoid manual DOM writes in render. Make the DOM
+        a result of data instead.
+      </p>
+    </div>
+  )
+}
+
+function JsxExpressionDiagram() {
+  return (
+    <div>
+      <DiagramHeading
+        title="JSX is markup plus JavaScript expressions"
+        description="Literal text stays as text. Braces switch into JavaScript."
+      />
+      <div className="mt-6 rounded-lg border bg-white p-4 font-mono text-sm leading-7">
+        <p>&lt;section className="card"&gt;</p>
+        <p className="pl-4">&lt;h1&gt;{'{learner.name}'}&lt;/h1&gt;</p>
+        <p className="pl-4">&lt;p&gt;12 lessons complete&lt;/p&gt;</p>
+        <p>&lt;/section&gt;</p>
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <Node label="className" detail="React attribute name" />
+        <Node label="{...}" detail="evaluate JavaScript" />
+        <Node label="one root" detail="one returned expression" />
+      </div>
+    </div>
+  )
+}
+
+function ComponentResponsibilityDiagram() {
+  return (
+    <div>
+      <DiagramHeading
+        title="Components name responsibilities in the UI tree"
+        description="A clear component does one job, then composes with other clear components."
+      />
+      <div className="mt-6 flex flex-col items-center">
+        <Node label="ProfileCard" detail="owns card layout" />
+        <div className="py-2 text-2xl text-blue-600">
+          ↙ &nbsp;&nbsp;&nbsp; ↓ &nbsp;&nbsp;&nbsp; ↘
+        </div>
+        <div className="grid w-full max-w-2xl gap-4 sm:grid-cols-3">
+          <Node label="Avatar" detail="initials or image" />
+          <Node label="UserDetails" detail="name and role" />
+          <Node label="SkillList" detail="repeated skills" />
+        </div>
+      </div>
+      <p className="mt-5 text-center text-sm text-gray-600">
+        If the name explains what that screen piece is responsible for, the
+        boundary is probably useful.
+      </p>
+    </div>
+  )
+}
+
+function PropsContractDiagram() {
+  return (
+    <div>
+      <DiagramHeading
+        title="Props are explicit inputs"
+        description="The parent owns the value. The child receives a read-only contract and renders from it."
+      />
+      <div className="mt-6 grid gap-4 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-center">
+        <Node label="Parent" detail='name="Maya"' />
+        <span className="text-center text-2xl text-blue-600">→</span>
+        <Node label="Props object" detail="{ name, role }" />
+        <span className="text-center text-2xl text-blue-600">→</span>
+        <Node label="Child UI" detail="Maya · Engineer" />
+      </div>
+    </div>
+  )
+}
+
+function CollectionStateDiagram() {
+  return (
+    <div>
+      <DiagramHeading
+        title="Collections need identity and state branches"
+        description="Render lists from data, preserve each row with a stable key, and handle every user-visible state."
+      />
+      <div className="mt-6 grid gap-3 md:grid-cols-4">
+        <Node label="Array" detail="records" />
+        <Node label="map" detail="one row each" />
+        <Node label="key" detail="stable id" />
+        <Node label="state branch" detail="loading/error/empty" />
+      </div>
+    </div>
+  )
+}
+
+function StateOwnershipDiagram() {
+  return (
+    <div>
+      <DiagramHeading
+        title="State has one owner"
+        description="Events request updates. React rerenders from the owner and passes the new values downward."
+      />
+      <div className="mt-6 grid gap-4 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-center">
+        <Node label="User event" detail="click or type" />
+        <span className="text-center text-2xl text-blue-600">→</span>
+        <Node label="State owner" detail="setState/update" />
+        <span className="text-center text-2xl text-blue-600">→</span>
+        <Node label="Rerender" detail="new UI from state" />
+      </div>
+    </div>
+  )
+}
+
+function FormFlowDiagram() {
+  return (
+    <div>
+      <DiagramHeading
+        title="Forms are controlled data flows"
+        description="A field displays state, reports changes, validates on submit, and renders feedback."
+      />
+      <div className="mt-6 grid gap-3 md:grid-cols-5">
+        <Node label="Input value" detail="from state" />
+        <Node label="onChange" detail="update draft" />
+        <Node label="Submit" detail="prevent refresh" />
+        <Node label="Validate" detail="errors or success" />
+        <Node label="Feedback" detail="visible result" />
+      </div>
+    </div>
+  )
+}
+
+function CommunicationDiagram() {
+  return (
+    <div>
+      <DiagramHeading
+        title="Children communicate through parent-owned callbacks"
+        description="The child does not secretly change sibling state. It asks the parent to update the shared source of truth."
+      />
+      <div className="mt-6 flex flex-col items-center">
+        <Node label="Parent state" detail="quantity=1" />
+        <div className="py-2 text-2xl text-blue-600">↓ props + callbacks</div>
+        <div className="grid w-full max-w-lg gap-4 sm:grid-cols-2">
+          <Node label="Controls" detail="onIncrement()" />
+          <Node label="Summary" detail="reads total" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function RouteDiagram() {
+  return (
+    <div>
+      <DiagramHeading
+        title="Routes connect URLs to UI and data"
+        description="The URL carries location, params, and search state. The route decides what component and data belong there."
+      />
+      <div className="mt-6 grid gap-4 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-center">
+        <Node label="URL" detail="/products/42?tab=reviews" />
+        <span className="text-center text-2xl text-blue-600">→</span>
+        <Node label="Route" detail="$productId + search" />
+        <span className="text-center text-2xl text-blue-600">→</span>
+        <Node label="Page" detail="detail + reviews" />
+      </div>
+    </div>
+  )
+}
+
+function ServerStateDiagram() {
+  return (
+    <div>
+      <DiagramHeading
+        title="Server state lives in a cache, not local component memory"
+        description="Queries read remote data, cache it, refetch it, and invalidate it after writes."
+      />
+      <div className="mt-6 grid gap-3 md:grid-cols-5">
+        <Node label="Component" detail="useQuery" />
+        <Node label="Cache" detail="queryKey" />
+        <Node label="API" detail="fetch data" />
+        <Node label="Mutation" detail="write data" />
+        <Node label="Invalidate" detail="refresh reads" />
+      </div>
+    </div>
+  )
+}
+
+function ContextBoundaryDiagram() {
+  return (
+    <div>
+      <DiagramHeading
+        title="Context creates a provider boundary"
+        description="Only descendants inside the provider can read the shared value."
+      />
+      <div className="mt-6 flex flex-col items-center">
+        <Node label="ThemeProvider" detail="value={theme}" />
+        <div className="py-2 text-2xl text-blue-600">↓ available below</div>
+        <div className="grid w-full max-w-lg gap-4 sm:grid-cols-2">
+          <Node label="Dashboard" detail="can read theme" />
+          <Node label="ThemeButton" detail="can toggle" />
+        </div>
+        <p className="mt-4 rounded bg-red-50 p-3 text-sm text-red-800">
+          Components outside the provider do not have this context.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function PerformanceDiagram() {
+  return (
+    <div>
+      <DiagramHeading
+        title="Measure the render path before optimizing"
+        description="Performance work starts by finding which state update causes which expensive work."
+      />
+      <div className="mt-6 grid gap-3 md:grid-cols-4">
+        <Node label="State update" detail="what changed?" />
+        <Node label="Rerender path" detail="who recalculates?" />
+        <Node label="Measurement" detail="where is slow?" />
+        <Node label="Optimization" detail="move, split, or memoize" />
+      </div>
+    </div>
+  )
+}
+
+function TestingPyramidDiagram() {
+  return (
+    <div>
+      <DiagramHeading
+        title="Tests should follow user-observable behavior"
+        description="Prefer roles, labels, text, and interactions over private implementation details."
+      />
+      <div className="mt-6 grid gap-3 md:grid-cols-3">
+        <Node label="Arrange" detail="render the UI" />
+        <Node label="Act" detail="click/type/wait" />
+        <Node label="Assert" detail="visible outcome" />
+      </div>
+    </div>
+  )
+}
+
+function AccessibilityDiagram() {
+  return (
+    <div>
+      <DiagramHeading
+        title="Accessible UI starts with semantic structure"
+        description="The right element, label, focus path, and status message make the interface understandable."
+      />
+      <div className="mt-6 grid gap-3 md:grid-cols-4">
+        <Node label="Semantic element" detail="button, form, nav" />
+        <Node label="Accessible name" detail="label or text" />
+        <Node label="Keyboard path" detail="focus + escape" />
+        <Node label="Status" detail="errors/loading" />
+      </div>
+    </div>
+  )
+}
+
+function CapstoneIntegrationDiagram() {
+  return (
+    <div>
+      <DiagramHeading
+        title="A capstone combines ownership decisions"
+        description="Real React apps connect components, state, routes, server data, forms, tests, and accessibility."
+      />
+      <div className="mt-6 grid gap-3 md:grid-cols-4">
+        <Node label="Components" detail="UI boundaries" />
+        <Node label="State" detail="local/shared/server" />
+        <Node label="Routes" detail="URL owns location" />
+        <Node label="Quality" detail="tests + a11y" />
+      </div>
     </div>
   )
 }

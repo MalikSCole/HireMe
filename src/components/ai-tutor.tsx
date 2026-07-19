@@ -7,10 +7,14 @@ import type { TutorMessage } from '../features/tutor/types'
 
 export function AiTutor({
   problemSlug,
+  contextSlug,
+  contextType = 'problem',
   sourceCode,
   signedIn,
 }: {
-  problemSlug: string
+  problemSlug?: string
+  contextSlug?: string
+  contextType?: 'problem' | 'lesson'
   sourceCode: string
   signedIn: boolean
 }) {
@@ -31,7 +35,13 @@ export function AiTutor({
     setError(null)
     try {
       const response = await askTutor({
-        data: { problemSlug, sourceCode, messages: history },
+        data: {
+          contextType,
+          contextSlug: contextSlug ?? problemSlug,
+          problemSlug,
+          sourceCode,
+          messages: history,
+        },
       })
       const assistantMessage: TutorMessage = {
         role: 'assistant',
@@ -63,14 +73,14 @@ export function AiTutor({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wider text-cyan-800">
-            Optional Groq tutor
+            Built-in AI tutor
           </p>
           <h2 id="ai-tutor-title" className="mt-1 text-xl font-semibold">
-            Ask about your approach
+            Ask for a hint
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            The tutor sees this problem and your current code, but never
-            receives hidden tests.
+            The tutor sees this {contextType} and the current context, but never
+            receives hidden tests or private platform data.
           </p>
         </div>
         {remaining !== null && (
@@ -93,8 +103,8 @@ export function AiTutor({
             <div className="mt-5 flex flex-wrap gap-2">
               {[
                 'Give me one hint',
-                'Review my current approach',
-                'What edge case should I consider?',
+                contextType === 'lesson' ? 'Explain the bug like I am new' : 'Review my current approach',
+                contextType === 'lesson' ? 'What React rule is involved?' : 'What edge case should I consider?',
               ].map((prompt) => (
                 <button
                   key={prompt}

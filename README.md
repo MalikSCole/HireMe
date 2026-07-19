@@ -7,13 +7,13 @@ The project is built with TanStack Start, React, TypeScript, PostgreSQL, and Dri
 ## Highlights
 
 - Full Blind 75 DSA catalog with Python starter code, progressive hints, visible tests, hidden tests, and structured lessons
-- React Foundations path with 85 lessons, live editable examples, Sandpack previews, and component challenges
+- React Foundations path with 85 beginner-oriented lessons, live editable examples, Sandpack previews, and 29 component challenges
 - System Design Foundations track with 46 lessons across foundations, building blocks, patterns, design problems, interview mode, and capstone work
 - Monaco-based Python problem workspace with starter code and saved drafts
 - Visible test runs and authenticated submissions against hidden test cases
 - Sandboxed Python execution through a separately hosted Piston service
 - Submission history, problem progress, lesson completion, streaks, achievements, and personalized recommendations
-- Interactive React lessons and Sandpack-based component challenges
+- Interactive React lessons with predict-the-output answers, fix-the-bug prompts, built-in AI tutor help, and Sandpack-based component challenges
 - Interactive system design architecture builder powered by XYFlow, with draggable nodes, connectable edges, minimap, zoom controls, and design-review hints
 - AST-based Python feedback for complexity signals and common implementation patterns
 - Step-by-step execution replay with specialized algorithm visualizations
@@ -43,6 +43,32 @@ Linked-list inputs are represented as JSON arrays, with an additional cycle posi
 The React Foundations course is organized around mental models and progressively larger implementation tasks. Lessons include editable code examples, live Sandpack previews, prediction exercises, bug-fix prompts, build targets, and review questions.
 
 The path covers JavaScript/TypeScript prerequisites, JSX, components, props, conditional rendering, lists, state, events, forms, component communication, effects, TanStack Router, TanStack Query, context, custom hooks, performance, testing, accessibility, and a capstone learning dashboard.
+
+Each lesson follows a classroom-style progression for absolute beginners:
+
+```text
+Mental model
+      ↓
+Guided example
+      ↓
+University-style checklist
+      ↓
+Predict the output
+      ↓
+Fix the bug
+      ↓
+Built-in AI tutor
+      ↓
+Visual diagram
+      ↓
+Build challenge
+      ↓
+Quiz
+```
+
+React snippets are tagged by purpose so display-only examples, interactive previews, and editable exercises are rendered through the correct surface. This keeps DSA snippets, explanatory code blocks, and React Sandpack previews isolated from one another.
+
+The React challenge catalog currently includes 29 Sandpack exercises tied to specific lessons. Challenges cover module imports, destructuring, array transformations, typed props, declarative rendering, JSX repair, composition, reusable props, children wrappers, empty/loading/error states, state updates, controlled inputs, forms, parent-child communication, effects, context, custom hooks, accessibility, testing behavior, performance state placement, production configuration, and capstone planning.
 
 ## System design curriculum
 
@@ -99,7 +125,7 @@ Important routes include:
 | `/learn/$lessonSlug`         | Lesson, diagram, quiz, and linked practice           |
 | `/problems`                  | Filterable DSA problem catalog                       |
 | `/problems/$problemSlug`     | Python editor, judge, hints, AI tutor, and replay    |
-| `/learn/react/challenges`    | React challenge catalog                              |
+| `/learn/react/challenges`    | Sandpack React challenge catalog                     |
 | `/dashboard`                 | Progress, streaks, achievements, and recommendations |
 | `/submissions`               | Authenticated submission history                     |
 
@@ -258,9 +284,9 @@ GROQ_API_KEY=your-private-key
 GROQ_MODEL=llama-3.3-70b-versatile
 ```
 
-Restart the application after changing `.env`, sign in, and open any DSA problem. The **Optional Groq tutor** panel appears below the code editor with quick actions for a hint, approach review, or edge-case guidance.
+Restart the application after changing `.env`, then sign in and open either a DSA problem or a React lesson. In DSA problems, the **Optional Groq tutor** panel appears below the code editor with quick actions for a hint, approach review, or edge-case guidance. In React lessons, the built-in tutor appears directly below the **Fix the bug** section so learners can ask for a hint or beginner-friendly explanation before viewing a full solution.
 
-The tutor is available inside each problem workspace to authenticated users. Requests include the public problem statement, the learner's current code, and up to eight recent chat messages. Hidden tests, hidden expected outputs, and submission records are never sent to Groq.
+The tutor is available to authenticated users. Requests include the public problem or lesson context, the learner's current code or lesson snippet, and up to eight recent chat messages. Hidden tests, hidden expected outputs, and submission records are never sent to Groq.
 
 The integration calls Groq's OpenAI-compatible Chat Completions endpoint directly from a TanStack server function. Responses are capped, requests time out after 20 seconds, and each user is limited to 12 requests per hour per running application instance. For multi-instance production deployments, replace the in-memory limiter with Redis or another shared store.
 
@@ -359,7 +385,7 @@ Implemented:
 - Full Blind 75, React Foundations, and System Design Foundations curricula
 - Python run and submit workflow
 - Hidden tests and submission history
-- React coding challenges
+- 29 Sandpack React coding challenges tied to lesson concepts
 - System design architecture builder
 - AST feedback and execution visualization
 - Streaks, achievements, and recommendations
